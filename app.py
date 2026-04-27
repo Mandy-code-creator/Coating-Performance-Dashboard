@@ -10,7 +10,6 @@ import math
 # ==========================================
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
-# Áp dụng CSS để tạo khung viền chuyên nghiệp, loại bỏ thanh cuộn
 st.markdown("""
 <style>
 .stPlotlyChart {
@@ -23,12 +22,13 @@ st.markdown("""
     border: 1px solid #e6e6e6;
     border-radius: 8px;
     padding: 10px;
+    background-color: #f9fbfd;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (進階根因分析與高對比版)")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (高階決策最佳化佈局)")
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -43,7 +43,6 @@ if uploaded_file is not None:
         else:
             df = pd.read_excel(uploaded_file, dtype=str)
 
-        # 1. 數據清洗 (Làm sạch dữ liệu)
         df.columns = df.columns.str.strip()
         df = df.dropna(how='all')
         
@@ -56,7 +55,6 @@ if uploaded_file is not None:
             if col in df.columns:
                 df[col] = df[col].fillna('未定義').astype(str).str.strip()
 
-        # 2. 數值轉換 (Chuyển đổi kiểu số)
         numeric_cols = ['合計理論耗用', '合計實際耗用', '合計績效%', '設定績效%']
         shift_cols = []
         for shift in ['A', 'B', 'C', 'D']:
@@ -70,14 +68,12 @@ if uploaded_file is not None:
                 df[col] = df[col].astype(str).str.replace(',', '', regex=False)
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        # 3. 補算指標 (Tính toán các cột chỉ số)
         if '合計績效%' not in df.columns or df['合計績效%'].isnull().all():
             df['合計績效%'] = np.where(df['合計實際耗用'] > 0, (df['合計理論耗用'] / df['合計實際耗用']) * 100, np.nan)
         
         df['Δ耗用 (Deviation)'] = df['合計實際耗用'] - df['合計理論耗用']
         df['Sort_Group'] = df['塗料編號'].apply(lambda x: 'GE00_01_Group' if any(g in str(x) for g in ['GE00', 'GE01']) else str(x))
 
-        # TÍNH TOÁN NHÓM HIỆU SUẤT TRƯỚC CHO TOÀN BỘ DATA (Dùng cho Pie Chart)
         conds_global = [df['合計績效%'] < 85, (df['合計績效%'] >= 85) & (df['合計績效%'] < 95), (df['合計績效%'] >= 95) & (df['合計績效%'] < 100), df['合計績效%'] >= 100]
         labels_global = ['🔴 < 85%', '🟡 85% - 95%', '🔵 95% - 100%', '🟢 ≥ 100%']
         df['績效等級'] = np.select(conds_global, labels_global, default='未知')
@@ -104,41 +100,139 @@ if uploaded_file is not None:
             avg_perf = filtered_df['合計績效%'].mean()
             total_delta = filtered_df['Δ耗用 (Deviation)'].sum()
             
-            k1.metric("平均總績效", f"{avg_perf:.2f}%")
-            k2.metric("總差異耗用", f"{total_delta:,.0f}", delta_color="inverse")
+            k1.metric("平均總績效 (理論值基準)", f"{avg_perf:.2f}%")
+            k2.metric("總差異耗用 (實際 - 理論)", f"{total_delta:,.0f}", delta_color="inverse")
             
             worst_perf_df = filtered_df.dropna(subset=['合計績效%'])
             if not worst_perf_df.empty:
                 worst_row = worst_perf_df.loc[worst_perf_df['合計績效%'].idxmin()]
-                k3.metric("優先改善對象", f"{worst_row['塗料編號']}", f"{worst_row['合計績效%']:.2f}%")
+                k3.metric("最需改善塗料", f"{worst_row['塗料編號']}", f"{worst_row['合計績效%']:.2f}%")
             k4.metric("分析塗料總數", f"{len(filtered_df['塗料編號'].unique())} 支")
 
         st.divider()
 
         # ==========================================
-        # [ 4. VISUALIZATION ]
+        # [ 4. VISUALIZATION - TỔ CHỨC LẠI LAYOUT ]
         # ==========================================
-        st.markdown("### 📊 核心視覺化分析")
+        st.markdown("### 📈 視覺化分析與根因探討")
         
         sort_order = filtered_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
         total_paints = len(sort_order)
         items_per_chart = 40
         num_charts = math.ceil(total_paints / items_per_chart)
 
-        viz_tab1, viz_tab2, viz_tab3, viz_tab4, viz_tab5, viz_tab6 = st.tabs([
-            "🎯 績效燈號 (Scatter)", "📊 耗用對比 (Bar)", "📉 差異分析 (Deviation)", 
-            "🚨 異常柏拉圖 (Pareto)", "📦 穩定度分析 (Box Plot)", "🍩 績效分佈 (Pie)"
+        # 💡 SẮP XẾP LẠI TÊN VÀ THỨ TỰ CÁC TAB TỪ VĨ MÔ ĐẾN VI MÔ
+        tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev = st.tabs([
+            "🍩 [總覽] 績效分佈 (Overview)", 
+            "🚨 [決策] 優先改善清單 (Pareto)", 
+            "📦 [根因] 穩定度分析 (Box Plot)", 
+            "🎯 [明細] 績效燈號 (Scatter)", 
+            "📊 [明細] 耗用對比 (Bar)", 
+            "📉 [明細] 差異分析 (Deviation)"
         ])
 
-        # --- TAB 1: SCATTER PLOT ---
-        with viz_tab1:
-            st.subheader(f"1. 塗料績效散佈圖 (共 {total_paints} 支，分 {num_charts} 組)")
-            st.info("""
-            **💡 讀圖提示：**
-            * **🎨 顏色：** 代表績效狀態 (🔴 嚴重超耗 < 85% | 🟡 注意 85-95% | 🔵 接近理論 95-100% | 🟢 達標/節省 ≥ 100%)
-            * **⭕ 圓圈大小：** 代表**「合計理論耗用量」**。圓圈越大，代表該塗料在產線上的使用量與占比越大。
-            * **🔥 決策重點：** 請優先尋找**「大紅圈」** (使用量極大且嚴重超耗的塗料)，這代表最大的成本流失！
-            """)
+        # --- 1. MACRO VIEW: PIE CHART ---
+        with tab_overview:
+            st.subheader("1. 整體績效分佈佔比 (Macro Overview)")
+            st.info("💡 **高階視角：** 快速檢視當前產線的健康度。若紅色區塊過大，代表整體生產出現系統性耗損。")
+            
+            pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
+            if not pie_df.empty:
+                pie_counts = pie_df['績效等級'].value_counts().reset_index()
+                pie_counts.columns = ['績效等級', '塗料數量']
+                
+                fig_pie = px.pie(
+                    pie_counts, values='塗料數量', names='績效等級',
+                    color='績效等級',
+                    color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
+                    hole=0.4
+                )
+                
+                fig_pie.update_traces(
+                    textposition='inside', textinfo='percent+label+value',
+                    marker=dict(line=dict(color='white', width=2)), textfont_size=14
+                )
+                
+                fig_pie.update_layout(
+                    plot_bgcolor='white', font=dict(color='black', size=14),
+                    height=550, title="<b>塗料績效等級總數與比例</b>",
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                st.warning("無有效的績效數據可供繪製。")
+
+        # --- 2. ACTIONABLE VIEW: PARETO CHART ---
+        with tab_pareto:
+            st.subheader("2. 異常超耗柏拉圖 (Pareto Priority)")
+            st.info("💡 **決策行動：** 找出造成最多浪費的關鍵少數塗料 (80/20法則)。**請優先處理累積曲線(藍線)前段的塗料**。")
+            
+            pareto_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+            if not pareto_df.empty:
+                pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
+                pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
+                top_pareto = pareto_df.head(40)
+
+                fig_pareto = go.Figure()
+                fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (單位)', marker_color='#d73027'))
+                fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
+
+                fig_pareto.update_layout(
+                    plot_bgcolor='white', font=dict(color='black'), showlegend=False,
+                    xaxis=dict(tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                    yaxis=dict(title="<b>超耗量</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
+                    yaxis2=dict(title="<b>累計影響 (%)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=1.5, linecolor='black'),
+                    height=650, title="<b>Top 40 成本流失最大塗料排行</b>"
+                )
+                st.plotly_chart(fig_pareto, use_container_width=True)
+            else:
+                st.success("🎉 目前無超耗記錄，所有塗料皆達標或節省！")
+
+        # --- 3. ROOT CAUSE VIEW: BOX PLOT ---
+        with tab_rootcause:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("3A. 供應商品質穩定度 (Supplier QC)")
+                st.info("💡 **追查材料端：** 盒子越長，代表該廠商的塗料在產線上表現越不穩定。")
+                if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
+                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'])
+                    fig_box1.add_hline(y=100, line_dash="dash", line_color="red")
+                    
+                    fig_box1.update_layout(
+                        showlegend=False, plot_bgcolor='white', font=dict(color='black'),
+                        xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                        yaxis=dict(title="<b>合計績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
+                        height=550
+                    )
+                    st.plotly_chart(fig_box1, use_container_width=True)
+
+            with col2:
+                st.subheader("3B. 班別操作穩定度 (Shift Operations)")
+                st.info("💡 **追查人員端：** 比對不同班別(A/B/C/D)的作業績效，確認是否因人為操作導致耗損。")
+                if shift_cols:
+                    shift_df = pd.melt(filtered_df, id_vars=['塗料編號'], value_vars=shift_cols, var_name='班別', value_name='績效%').dropna(subset=['績效%'])
+                    shift_df['班別'] = shift_df['班別'].str.replace('班績效%', '班')
+                    
+                    if not shift_df.empty:
+                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'])
+                        fig_box2.add_hline(y=100, line_dash="dash", line_color="red")
+                        
+                        fig_box2.update_layout(
+                            showlegend=False, plot_bgcolor='white', font=dict(color='black'),
+                            xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                            yaxis=dict(title="<b>績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
+                            height=550
+                        )
+                        st.plotly_chart(fig_box2, use_container_width=True)
+                    else:
+                        st.warning("無足夠班別數據")
+                else:
+                    st.warning("資料中未包含班別欄位")
+
+        # --- 4. MICRO VIEW: SCATTER PLOT ---
+        with tab_scatter:
+            st.subheader(f"4. 單一塗料績效燈號追蹤 (共 {total_paints} 支，分 {num_charts} 組)")
+            st.info("💡 圓圈大小代表**「理論耗用量」**。請尋找**「大紅圈」**深入調查！")
             
             if not filtered_df.empty and total_paints > 0:
                 for i in range(num_charts):
@@ -177,13 +271,13 @@ if uploaded_file is not None:
                             plot_bgcolor='white', font=dict(color='black', size=13), margin=dict(r=100),
                             xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch, showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(size=11)),
                             yaxis=dict(title="<b>合計績效 (%)</b>", dtick=10, range=[y_min_pad, y_max_pad], gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                            height=650, title=f"<b>第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})</b>"
+                            height=650, title=f"<b>第 {i+1} 組塗料燈號 ({start_idx+1} - {end_idx})</b>"
                         )
                         st.plotly_chart(fig, use_container_width=True)
 
-        # --- TAB 2: BAR CHART ---
-        with viz_tab2:
-            st.subheader("2. 理論耗用 vs 實際耗用")
+        # --- 5. MICRO VIEW: BAR CHART ---
+        with tab_bar:
+            st.subheader("5. 單一塗料：理論耗用 vs 實際耗用明細")
             for i in range(num_charts):
                 start_idx = i * items_per_chart
                 current_batch = sort_order[start_idx : start_idx + items_per_chart]
@@ -198,13 +292,13 @@ if uploaded_file is not None:
                     plot_bgcolor='white', font=dict(color='black'), barmode='group', 
                     xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>耗用量</b>", gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                    height=600, title=f"<b>第 {i+1} 組耗用對比</b>"
+                    height=600, title=f"<b>第 {i+1} 組明細對比</b>"
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- TAB 3: DEVIATION CHART ---
-        with viz_tab3:
-            st.subheader("3. 耗用差異 (Δ 實際 - 理論)")
+        # --- 6. MICRO VIEW: DEVIATION CHART ---
+        with tab_dev:
+            st.subheader("6. 單一塗料：耗用差異絕對值 (Δ 實際 - 理論)")
             for i in range(num_charts):
                 start_idx = i * items_per_chart
                 current_batch = sort_order[start_idx : start_idx + items_per_chart]
@@ -221,113 +315,12 @@ if uploaded_file is not None:
                     plot_bgcolor='white', font=dict(color='black'), margin=dict(r=80),
                     xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>差異量 (Δ耗用)</b>", gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                    height=600, title=f"<b>第 {i+1} 組差異分析</b>"
+                    height=600, title=f"<b>第 {i+1} 組差異明細</b>"
                 )
                 st.plotly_chart(fig_dev, use_container_width=True)
 
-        # --- TAB 4: PARETO CHART ---
-        with viz_tab4:
-            st.subheader("4. 異常超耗柏拉圖 (Pareto Chart) - 優先改善清單")
-            st.info("💡 **決策重點：** 找出造成最多浪費的關鍵少數塗料 (80/20法則)。請優先處理累積曲線(藍線)前段的塗料。")
-            
-            pareto_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
-            if not pareto_df.empty:
-                pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
-                pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
-                top_pareto = pareto_df.head(40)
-
-                fig_pareto = go.Figure()
-                fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (單位)', marker_color='#d73027'))
-                fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
-
-                fig_pareto.update_layout(
-                    plot_bgcolor='white', font=dict(color='black'), showlegend=False,
-                    xaxis=dict(tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                    yaxis=dict(title="<b>超耗量</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
-                    yaxis2=dict(title="<b>累計影響 (%)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=1.5, linecolor='black'),
-                    height=650, title="<b>Top 40 超耗塗料排行</b>"
-                )
-                st.plotly_chart(fig_pareto, use_container_width=True)
-            else:
-                st.success("🎉 目前無超耗記錄，所有塗料皆達標或節省！")
-
-        # --- TAB 5: BOX PLOTS ---
-        with viz_tab5:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("5. 供應商穩定度分析 (Box Plot)")
-                st.info("💡 **讀圖提示：** 觀察各廠商的績效分布範圍，**盒子越長代表品質越不穩定**。")
-                if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
-                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'])
-                    fig_box1.add_hline(y=100, line_dash="dash", line_color="red")
-                    
-                    fig_box1.update_layout(
-                        showlegend=False, plot_bgcolor='white', font=dict(color='black'),
-                        xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                        yaxis=dict(title="<b>合計績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
-                        height=550
-                    )
-                    st.plotly_chart(fig_box1, use_container_width=True)
-
-            with col2:
-                st.subheader("6. 班別交叉分析")
-                st.info("💡 **讀圖提示：** 比對不同班別(A/B/C/D)的作業績效，**尋找操作差異的根因**。")
-                if shift_cols:
-                    shift_df = pd.melt(filtered_df, id_vars=['塗料編號'], value_vars=shift_cols, var_name='班別', value_name='績效%').dropna(subset=['績效%'])
-                    shift_df['班別'] = shift_df['班別'].str.replace('班績效%', '班')
-                    
-                    if not shift_df.empty:
-                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'])
-                        fig_box2.add_hline(y=100, line_dash="dash", line_color="red")
-                        
-                        fig_box2.update_layout(
-                            showlegend=False, plot_bgcolor='white', font=dict(color='black'),
-                            xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                            yaxis=dict(title="<b>績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
-                            height=550
-                        )
-                        st.plotly_chart(fig_box2, use_container_width=True)
-                    else:
-                        st.warning("無足夠班別數據")
-                else:
-                    st.warning("資料中未包含班別欄位")
-
-        # --- TAB 6: PIE CHART ---
-        with viz_tab6:
-            st.subheader("7. 整體績效分佈佔比 (Pie Chart)")
-            st.info("💡 **宏觀視角：** 快速檢視當前篩選條件下，各績效等級的塗料數量與比例。若紅色區塊過大，代表產線整體耗損嚴重。")
-            
-            pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
-            if not pie_df.empty:
-                pie_counts = pie_df['績效等級'].value_counts().reset_index()
-                pie_counts.columns = ['績效等級', '塗料數量']
-                
-                fig_pie = px.pie(
-                    pie_counts, values='塗料數量', names='績效等級',
-                    color='績效等級',
-                    color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                    hole=0.4
-                )
-                
-                fig_pie.update_traces(
-                    textposition='inside', 
-                    textinfo='percent+label+value',
-                    marker=dict(line=dict(color='white', width=2)),
-                    textfont_size=14
-                )
-                
-                fig_pie.update_layout(
-                    plot_bgcolor='white', font=dict(color='black', size=14),
-                    height=550, title="<b>塗料績效等級分佈 (總數與比例)</b>",
-                    showlegend=True,
-                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
-                )
-                st.plotly_chart(fig_pie, use_container_width=True)
-            else:
-                st.warning("無有效的績效數據可供繪製。")
-
         # --- RAW DATA EXPANDER ---
-        with st.expander("🔍 數據明細"):
+        with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
             st.dataframe(filtered_df)
 
     except Exception as e:
