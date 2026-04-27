@@ -4,204 +4,217 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 
-# ==========================================
-# PAGE CONFIG
-# ==========================================
-st.set_page_config(page_title="塗料 Dashboard", layout="wide")
+# 頁面設定
+st.set_page_config(page_title="塗料生產績效儀表板", layout="wide")
 
-st.title("📊 塗料生產績效分析 Dashboard (Fixed Version)")
-
-# ==========================================
-# UPLOAD
-# ==========================================
-st.sidebar.header("📂 Upload Data")
-uploaded_file = st.sidebar.file_uploader("CSV / Excel", type=['csv', 'xlsx'])
+st.title("📊 塗料生產績效與耗用分析儀表板")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (Data Flow 整合版)")
 
 # ==========================================
-# LOAD
+# [ DATA SOURCE & DATA LOAD ]
 # ==========================================
+st.sidebar.header("📂 [1] 資料匯入 (Data Load)")
+uploaded_file = st.sidebar.file_uploader("請上傳資料檔 (支援 CSV 或 Excel)", type=['csv', 'xlsx'])
+
 if uploaded_file is not None:
+    try:
+        # 讀取資料
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file, engine='python', sep=None)
+        else:
+            df = pd.read_excel(uploaded_file)
 
-    if uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file, engine='python', sep=None)
-    else:
-        df = pd.read_excel(uploaded_file)
+        # ==========================================
+        # [ DATA CLEANING ]
+        # ==========================================
+        # 1. 處理 Missing (空值) 與欄位格式化
+        df = df.dropna(subset=['塗料編號']) # 排除沒有塗料編號的無效數據
+        
+        if '年月' in df.columns:
+            # 將年月轉為字串並去除可能的浮點數小數點 (如 202603.0 -> 202603)
+            df['年月'] = df['年月'].astype(str).str.replace(r'\.0$', '', regex=True)
 
-    df = df.dropna(subset=['塗料編號'])
+        # 確保特定分類欄位為字串
+        cat_cols = ['線別', '油漆廠商', '顏色', '樹脂', '用途']
+        for col in cat_cols:
+            if col in df.columns:
+                df[col] = df[col].fillna('未定義').astype(str)
 
-    # format month
-    if '年月' in df.columns:
-        df['年月'] = df['年月'].astype(str).str.replace(r'\.0$', '', regex=True)
+        # 2. 數值標準化與格式化 (確保為浮點數，去除異常文字)
+        numeric_cols = ['合計理論耗用', '合計實際耗用', '合計績效%', '設定績效%']
+        for shift in ['A', 'B', 'C', 'D']:
+            numeric_cols.extend([f'{shift}班理論耗用', f'{shift}班實際耗用', f'{shift}班績效%'])
+            
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # categorical
-    for col in ['線別', '油漆廠商', '顏色', '樹脂', '用途']:
-        if col in df.columns:
-            df[col] = df[col].fillna('未定義').astype(str)
+        # ==========================================
+        # [ DATA MODELING ]
+        # ==========================================
+        # 建立 Measure (計算指標)
+        # 績效% = 理論 / 實際 (依據現有資料邏輯) 或 實際 / 理論 (若資料缺失則補算)
+        if '合計績效%' not in df.columns and '合計理論耗用' in df.columns and '合計實際耗用' in df.columns:
+            df['合計績效%'] = np.where(df['合計實際耗用'] != 0, (df['合計理論耗用'] / df['合計實際耗用']) * 100, np.nan)
+            
+        # Δ耗用 = 實際耗用 - 理論耗用 (大於0代表超耗)
+        if '合計實際耗用' in df.columns and '合計理論耗用' in df.columns:
+            df['Δ耗用 (Deviation)'] = df['合計實際耗用'] - df['合計理論耗用']
+            df['Δ% (Dev % )'] = np.where(df['合計理論耗用'] != 0, (df['Δ耗用 (Deviation)'] / df['合計理論耗用']) * 100, np.nan)
 
-    # numeric
-    num_cols = ['合計理論耗用', '合計實際耗用', '合計績效%']
-    for c in num_cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors='coerce')
+        # ==========================================
+        # [ DASHBOARD FILTER (POWER BI LAYER) ]
+        # ==========================================
+        st.sidebar.header("🔍 [2] 儀表板篩選 (Filters)")
+        
+        st.sidebar.markdown("**階層式連動篩選 (Cascading Filters)**")
+        
+        # 1. 選擇時間 (Month)
+        months = sorted(df['年月'].dropna().unique()) if '年月' in df.columns else []
+        sel_month = st.sidebar.multiselect("1. 年月 (Month)", options=months, default=months)
+        df_step1 = df[df['年月'].isin(sel_month)] if '年月' in df.columns else df
+        
+        # 2. 選擇線別 (Line) - 選項會依據已選的「年月」自動更新
+        lines = sorted(df_step1['線別'].dropna().unique()) if '線別' in df_step1.columns else []
+        sel_line = st.sidebar.multiselect("2. 線別 (Line)", options=lines, default=lines)
+        df_step2 = df_step1[df_step1['線別'].isin(sel_line)] if '線別' in df_step1.columns else df_step1
+        
+        # 3. 選擇用途 (Usage) - 加入您要求的「用途」篩選，選項會依據前兩步自動更新
+        usages = sorted(df_step2['用途'].dropna().unique()) if '用途' in df_step2.columns else []
+        sel_usage = st.sidebar.multiselect("3. 用途 (Usage)", options=usages, default=usages)
+        df_step3 = df_step2[df_step2['用途'].isin(sel_usage)] if '用途' in df_step2.columns else df_step2
 
-    # KPI calc
-    df['Δ耗用'] = df['合計實際耗用'] - df['合計理論耗用']
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**其他屬性篩選**")
+        
+        def get_unique_step3(col): return sorted(df_step3[col].dropna().unique()) if col in df_step3.columns else []
+        
+        sel_color = st.sidebar.multiselect("顏色 (Color)", options=get_unique_step3('顏色'), default=get_unique_step3('顏色'))
+        sel_resin = st.sidebar.multiselect("樹脂 (Resin)", options=get_unique_step3('樹脂'), default=get_unique_step3('樹脂'))
+        sel_supplier = st.sidebar.multiselect("廠商 (Supplier)", options=get_unique_step3('油漆廠商'), default=get_unique_step3('油漆廠商'))
 
-    if '合計績效%' not in df.columns:
-        df['合計績效%'] = np.where(
-            df['合計實際耗用'] != 0,
-            df['合計理論耗用'] / df['合計實際耗用'] * 100,
-            np.nan
+        # 應用最終篩選器
+        mask = (
+            df_step3.get('顏色', pd.Series(True, index=df_step3.index)).isin(sel_color) &
+            df_step3.get('樹脂', pd.Series(True, index=df_step3.index)).isin(sel_resin) &
+            df_step3.get('油漆廠商', pd.Series(True, index=df_step3.index)).isin(sel_supplier)
         )
+        filtered_df = df_step3[mask].copy()
 
-    # ==========================================
-    # SAFE FUNCTION
-    # ==========================================
-    def opt(col, data):
-        return sorted(data[col].dropna().unique()) if col in data.columns else []
+        # ==========================================
+        # [ DECISION MAKING ] KPI 總覽
+        # ==========================================
+        st.markdown("### 🎯 決策指標 (Decision Making KPIs)")
+        if not filtered_df.empty:
+            kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+            
+            avg_perf = filtered_df['合計績效%'].mean()
+            total_delta = filtered_df['Δ耗用 (Deviation)'].sum()
+            worst_paint = filtered_df.loc[filtered_df['合計績效%'].idxmin()] if not filtered_df['合計績效%'].isna().all() else None
+            
+            kpi1.metric("整體平均績效", f"{avg_perf:.2f}%" if pd.notnull(avg_perf) else "N/A")
+            kpi2.metric("總差異耗用 (實際 - 理論)", f"{total_delta:,.0f} 單位", "異常超耗" if total_delta > 0 else "耗用節省", delta_color="inverse")
+            
+            if worst_paint is not None:
+                kpi3.metric("需改善塗料 (效能最低)", f"{worst_paint['塗料編號']}", f"{worst_paint['合計績效%']:.2f}%")
+            else:
+                kpi3.metric("需改善塗料", "無資料")
+                
+            kpi4.metric("篩選塗料總數", f"{len(filtered_df)} 筆")
+        else:
+            st.warning("查無符合篩選條件的資料。")
 
-    # ==========================================
-    # CASCADING FILTER
-    # ==========================================
+        st.divider()
 
-    st.sidebar.header("🔍 Filters (Cascading)")
+        # ==========================================
+        # [ DATA TRANSFORM & ANALYSIS LAYER ]
+        # ==========================================
+        st.markdown("### 📈 視覺化分析 (Visualization)")
+        
+        tab1, tab2, tab3, tab4 = st.tabs(["🔥 班別熱力圖 (Heatmap)", "📊 理論與實際比較 (Bar)", "📉 耗用差異分析 (Deviation)", "📈 趨勢與關聯分析 (Trend)"])
 
-    # 1 TIME
-    sel_month = st.sidebar.multiselect("年月", opt('年月', df), default=opt('年月', df))
-    df1 = df[df['年月'].isin(sel_month)]
+        with tab1:
+            st.subheader("1. 班別績效熱力圖 (Shift Performance Heatmap)")
+            st.markdown("核心分析：快速識別哪個班別在特定塗料上的表現最弱 (顏色越紅代表績效越低)")
+            
+            # [ DATA TRANSFORM ] Unpivot A/B/C/D
+            shift_cols = [c for c in ['A班績效%', 'B班績效%', 'C班績效%', 'D班績效%'] if c in filtered_df.columns]
+            if shift_cols:
+                # 建立結構：塗料編號 | 班別 | 績效%
+                df_unpivot = pd.melt(filtered_df, 
+                                     id_vars=['塗料編號'], 
+                                     value_vars=shift_cols, 
+                                     var_name='班別', 
+                                     value_name='績效%')
+                df_unpivot['班別'] = df_unpivot['班別'].str.replace('班績效%', '')
+                df_unpivot = df_unpivot.dropna(subset=['績效%'])
+                
+                # 計算平均值以繪製熱力圖
+                heatmap_data = df_unpivot.groupby(['塗料編號', '班別'])['績效%'].mean().reset_index()
+                
+                fig_heat = go.Figure(data=go.Heatmap(
+                    z=heatmap_data['績效%'],
+                    x=heatmap_data['班別'],
+                    y=heatmap_data['塗料編號'],
+                    colorscale='RdYlGn', # 紅(低) -> 黃 -> 綠(高)
+                    hoverongaps=False
+                ))
+                fig_heat.update_layout(xaxis_title="班別 (Shift)", yaxis_title="塗料編號", height=600)
+                st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.info("資料缺少班別績效欄位，無法繪製熱力圖。")
 
-    # 2 LINE
-    sel_line = st.sidebar.multiselect("線別", opt('線別', df1), default=opt('線別', df1))
-    df2 = df1[df1['線別'].isin(sel_line)]
+        with tab2:
+            st.subheader("2. 理論耗用 vs 實際耗用 (Theoretical vs Actual)")
+            # 依據塗料編號分組加總
+            df_bar = filtered_df.groupby('塗料編號')[['合計理論耗用', '合計實際耗用']].sum().reset_index()
+            
+            fig_bar = go.Figure()
+            fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論耗用 (Theoretical)', marker_color='rgb(55, 83, 109)'))
+            fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際耗用 (Actual)', marker_color='rgb(26, 118, 255)'))
+            fig_bar.update_layout(barmode='group', xaxis_title="塗料編號", yaxis_title="耗用量")
+            st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 3 PURPOSE
-    sel_usage = st.sidebar.multiselect("用途", opt('用途', df2), default=opt('用途', df2))
-    df3 = df2[df2['用途'].isin(sel_usage)]
+        with tab3:
+            st.subheader("3. 耗用差異圖表 (Deviation Chart)")
+            st.markdown("分析 `Δ耗用 = 實際 - 理論`。數值大於 0 表示**超耗 (紅色)**，小於 0 表示**節省 (綠色)**。")
+            
+            df_dev = filtered_df.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+            # 設定顏色標籤
+            df_dev['顏色標示'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗 (Over)', '節省 (Under)')
+            
+            fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='顏色標示',
+                             color_discrete_map={'超耗 (Over)': 'red', '節省 (Under)': 'green'})
+            fig_dev.add_hline(y=0, line_dash="solid", line_color="black")
+            fig_dev.update_layout(xaxis_title="塗料編號", yaxis_title="差異量 (Δ耗用)")
+            st.plotly_chart(fig_dev, use_container_width=True)
 
-    # 4 COLOR
-    sel_color = st.sidebar.multiselect("顏色", opt('顏色', df3), default=opt('顏色', df3))
-    df4 = df3[df3['顏色'].isin(sel_color)]
+        with tab4:
+            st.subheader("4. 績效趨勢與廠商分析 (Trend & Supplier Comparison)")
+            col_trend1, col_trend2 = st.columns(2)
+            
+            with col_trend1:
+                # 趨勢圖 (Trend Chart)
+                df_trend = filtered_df.groupby('年月')['合計績效%'].mean().reset_index()
+                df_trend = df_trend.sort_values('年月')
+                fig_trend = px.line(df_trend, x='年月', y='合計績效%', markers=True, title="隨時間變化的平均績效趨勢")
+                fig_trend.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="目標 100%")
+                st.plotly_chart(fig_trend, use_container_width=True)
+                
+            with col_trend2:
+                # 廠商表現比較 (Supplier / Resin)
+                if '油漆廠商' in filtered_df.columns:
+                    df_sup = filtered_df.groupby('油漆廠商')['合計績效%'].mean().reset_index()
+                    fig_sup = px.bar(df_sup, x='油漆廠商', y='合計績效%', color='合計績效%', color_continuous_scale='Blues', title="各油漆廠商平均績效比較")
+                    fig_sup.add_hline(y=100, line_dash="dash", line_color="red")
+                    st.plotly_chart(fig_sup, use_container_width=True)
 
-    # 5 RESIN
-    sel_resin = st.sidebar.multiselect("樹脂", opt('樹脂', df4), default=opt('樹脂', df4))
-    df5 = df4[df4['樹脂'].isin(sel_resin)]
+        # 原始資料檢視
+        with st.expander("🔍 檢視轉換後的底層資料 (Data View)"):
+            st.dataframe(filtered_df)
 
-    # 6 SUPPLIER
-    sel_supplier = st.sidebar.multiselect("廠商", opt('油漆廠商', df5), default=opt('油漆廠商', df5))
-    filtered_df = df5[df5['油漆廠商'].isin(sel_supplier)].copy()
-
-    # ==========================================
-    # KPI
-    # ==========================================
-    st.markdown("## 🎯 KPI")
-
-    if not filtered_df.empty:
-        c1, c2, c3, c4 = st.columns(4)
-
-        c1.metric("平均績效", f"{filtered_df['合計績效%'].mean():.2f}%")
-        c2.metric("Δ耗用", f"{filtered_df['Δ耗用'].sum():,.0f}")
-        c3.metric("資料筆數", len(filtered_df))
-        c4.metric("塗料數", filtered_df['塗料編號'].nunique())
-
-    else:
-        st.warning("No data")
-
-    st.divider()
-
-    # ==========================================
-    # TABS
-    # ==========================================
-    tab1, tab2, tab3 = st.tabs(["Heatmap", "Bar", "Trend"])
-
-    # ==========================================
-    # HEATMAP (FIXED - KEEP ALL 41 LINES)
-    # ==========================================
-    with tab1:
-        st.subheader("班別 Heatmap (FIXED)")
-
-        shift_cols = [c for c in ['A班績效%', 'B班績效%', 'C班績效%', 'D班績效%'] if c in filtered_df.columns]
-
-        if shift_cols:
-
-            df_melt = pd.melt(
-                filtered_df,
-                id_vars=['塗料編號'],
-                value_vars=shift_cols,
-                var_name='班別',
-                value_name='績效'
-            )
-
-            # FIX: không dropna
-            df_melt['績效'] = df_melt['績效'].fillna(0)
-
-            pivot = df_melt.pivot_table(
-                index='塗料編號',
-                columns='班別',
-                values='績效',
-                aggfunc='mean'
-            )
-
-            # 🔥 FIX: giữ đủ ALL LINE (41 line fix ở đây)
-            pivot = pivot.reindex(filtered_df['塗料編號'].unique())
-
-            pivot = pivot.fillna(0)
-
-            fig = go.Figure(data=go.Heatmap(
-                z=pivot.values,
-                x=pivot.columns,
-                y=pivot.index,
-                colorscale='RdYlGn'
-            ))
-
-            fig.update_layout(
-                height=700,
-                yaxis_title="塗料編號",
-                xaxis_title="班別"
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-
-    # ==========================================
-    # BAR
-    # ==========================================
-    with tab2:
-        st.subheader("理論 vs 實際")
-
-        df_bar = filtered_df.groupby('塗料編號')[['合計理論耗用', '合計實際耗用']].sum().reset_index()
-
-        fig = go.Figure()
-        fig.add_bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name="理論")
-        fig.add_bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name="實際")
-
-        fig.update_layout(barmode='group')
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    # ==========================================
-    # TREND (FIX MULTI LINE)
-    # ==========================================
-    with tab3:
-        st.subheader("Trend (ALL MATERIALS)")
-
-        if '年月' in filtered_df.columns:
-
-            trend_df = filtered_df.groupby(['年月', '塗料編號'])['合計績效%'].mean().reset_index()
-
-            fig = px.line(
-                trend_df,
-                x='年月',
-                y='合計績效%',
-                color='塗料編號',   # 🔥 FIX: show all materials
-                markers=True
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-
-    # ==========================================
-    # RAW DATA
-    # ==========================================
-    with st.expander("DATA VIEW"):
-        st.dataframe(filtered_df)
+    except Exception as e:
+        st.error(f"資料處理時發生錯誤，請確認檔案格式是否符合。錯誤詳情：{e}")
 
 else:
-    st.info("Upload file to start")
+    st.info("👈 請於左側面板上傳您的資料集 (Data Source) 以驅動分析引擎。")
