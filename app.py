@@ -99,12 +99,11 @@ if uploaded_file is not None:
         with viz_tab1:
             st.subheader(f"1. 塗料績效散佈圖 (共 {total_paints} 支，分 {num_charts} 組)")
             
-            # --- 💡 CẬP NHẬT: GHI CHÚ RÕ RÀNG Ý NGHĨA BIỂU ĐỒ ---
             st.info("""
-            **💡 讀圖提示 (Hướng dẫn đọc biểu đồ):**
-            * **🎨 顏色 (Màu sắc):** 代表績效狀態 (🔴 嚴重超耗 < 85% | 🟡 注意 85-95% | 🔵 接近理論 95-100% | 🟢 達標/節省 ≥ 100%)
-            * **⭕ 圓圈大小 (Kích thước):** 代表 **「理論耗用量」**。圓圈越大，代表該塗料在產線上的使用量與占比越大。
-            * **🔥 決策重點 (Trọng tâm):** 請優先尋找 **「大紅圈」** (使用量極大且嚴重超耗的塗料)，這代表最大的成本流失！
+            **💡 讀圖提示：**
+            * **🎨 顏色：** 代表績效狀態 (🔴 嚴重超耗 < 85% | 🟡 注意 85-95% | 🔵 接近理論 95-100% | 🟢 達標/節省 ≥ 100%)
+            * **⭕ 圓圈大小：** 代表**「合計理論耗用量」**。圓圈越大，代表該塗料在產線上的使用量與占比越大。
+            * **🔥 決策重點：** 請優先尋找**「大紅圈」** (使用量極大且嚴重超耗的塗料)，這代表最大的成本流失！
             """)
             
             if not filtered_df.empty and total_paints > 0:
@@ -132,14 +131,18 @@ if uploaded_file is not None:
                             hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
                         )
                         
-                        fig.add_hline(
+                        # Vẽ đường nét đứt 100%
+                        fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
+                        
+                        # --- 💡 DỜI NHÃN RA NGOÀI BIỂU ĐỒ ---
+                        fig.add_annotation(
+                            x=1.01, # Tọa độ X ngoài mép phải khung hình
                             y=100, 
-                            line_dash="dash", 
-                            line_color="red",      
-                            line_width=2.5,        
-                            annotation_text="<b>🎯 目標 100%</b>", 
-                            annotation_position="top right",
-                            annotation_font=dict(color="red", size=14)
+                            xref="paper", yref="y",
+                            text="<b>🎯 目標 100%</b>", 
+                            showarrow=False,
+                            xanchor="left", yanchor="middle",
+                            font=dict(color="red", size=14)
                         )
                         
                         fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
@@ -152,6 +155,7 @@ if uploaded_file is not None:
                         fig.update_layout(
                             plot_bgcolor='white', 
                             font=dict(color='black', size=13),
+                            margin=dict(r=100), # Mở rộng biên phải 100px để không bị mất chữ
                             xaxis=dict(
                                 dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch,
                                 showline=True, linewidth=1.5, linecolor='black', mirror=True, 
@@ -211,15 +215,22 @@ if uploaded_file is not None:
                 df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                 
-                fig_dev.add_hline(
-                    y=0, line_dash="solid", line_color="black", line_width=2.5,
-                    annotation_text="<b>基準 0</b>", 
-                    annotation_position="top right", 
-                    annotation_font=dict(color="black", size=14)
+                fig_dev.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
+                
+                # --- 💡 DỜI NHÃN RA NGOÀI BIỂU ĐỒ ---
+                fig_dev.add_annotation(
+                    x=1.01, 
+                    y=0, 
+                    xref="paper", yref="y",
+                    text="<b>基準 0</b>", 
+                    showarrow=False,
+                    xanchor="left", yanchor="middle",
+                    font=dict(color="black", size=14)
                 )
                 
                 fig_dev.update_layout(
                     plot_bgcolor='white', font=dict(color='black'),
+                    margin=dict(r=80), # Mở rộng biên phải
                     xaxis=dict(
                         dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch,
                         showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(color='black')
