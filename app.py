@@ -125,36 +125,62 @@ if uploaded_file is not None:
             "📉 [明細] 差異分析 (Deviation)"
         ])
 
-        # --- 1. MACRO VIEW: PIE CHART ---
+        # --- 1. MACRO VIEW: PIE CHART & DECISION TABLE ---
         with tab_overview:
-            st.subheader("1. 整體績效分佈佔比 (Macro Overview)")
-            st.info("💡 **高階視角：** 快速檢視當前產線的健康度。若紅色區塊過大，代表整體生產出現系統性耗損。")
+            st.subheader("1. 整體績效分佈與行動清單 (Macro Overview & Decision Table)")
+            st.info("💡 **高階視角：** 左側檢視整體生產耗損比例，右側列出 **急需處理的「超耗」決策清單 (實際耗用 > 理論耗用)**。")
             
             pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
-            if not pie_df.empty:
-                pie_counts = pie_df['績效等級'].value_counts().reset_index()
-                pie_counts.columns = ['績效等級', '塗料數量']
+            col_pie, col_table = st.columns([4, 6])
+            
+            with col_pie:
+                if not pie_df.empty:
+                    pie_counts = pie_df['績效等級'].value_counts().reset_index()
+                    pie_counts.columns = ['績效等級', '塗料數量']
+                    
+                    fig_pie = px.pie(
+                        pie_counts, values='塗料數量', names='績效等級',
+                        color='績效等級',
+                        color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
+                        hole=0.4
+                    )
+                    
+                    fig_pie.update_traces(
+                        textposition='inside', textinfo='percent+label+value',
+                        marker=dict(line=dict(color='white', width=2)), textfont_size=14
+                    )
+                    
+                    fig_pie.update_layout(
+                        plot_bgcolor='white', font=dict(color='black', size=14),
+                        height=450, title="<b>塗料績效等級比例</b>",
+                        margin=dict(t=40, b=10, l=10, r=10),
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_pie, use_container_width=True)
+                else:
+                    st.warning("無有效的績效數據可供繪製。")
+            
+            with col_table:
+                st.markdown("##### 🚨 Top 10 嚴重超耗塗料清單 (Decision Table)")
+                over_used_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].copy()
                 
-                fig_pie = px.pie(
-                    pie_counts, values='塗料數量', names='績效等級',
-                    color='績效等級',
-                    color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                    hole=0.4
-                )
-                
-                fig_pie.update_traces(
-                    textposition='inside', textinfo='percent+label+value',
-                    marker=dict(line=dict(color='white', width=2)), textfont_size=14
-                )
-                
-                fig_pie.update_layout(
-                    plot_bgcolor='white', font=dict(color='black', size=14),
-                    height=550, title="<b>塗料績效等級總數與比例</b>",
-                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
-                )
-                st.plotly_chart(fig_pie, use_container_width=True)
-            else:
-                st.warning("無有效的績效數據可供繪製。")
+                if not over_used_df.empty:
+                    decision_table = over_used_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
+                    show_cols = ['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
+                    decision_table = decision_table[show_cols]
+                    decision_table.columns = ['塗料編號 (Item)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '超耗量 (實際-理論)']
+                    
+                    styled_table = decision_table.style.format({
+                        '合計績效 (%)': '{:.2f}%',
+                        '超耗量 (實際-理論)': '{:,.0f}'
+                    }).background_gradient(
+                        subset=['超耗量 (實際-理論)'], 
+                        cmap='Reds'
+                    )
+                    
+                    st.dataframe(styled_table, use_container_width=True, hide_index=True, height=400)
+                else:
+                    st.success("🎉 目前無超耗塗料！")
 
         # --- 2. ACTIONABLE VIEW: PARETO CHART ---
         with tab_pareto:
@@ -185,12 +211,25 @@ if uploaded_file is not None:
         # --- 3. ROOT CAUSE VIEW: BOX PLOT ---
         with tab_rootcause:
             col1, col2 = st.columns(2)
+            
+            # 💡 BẢNG MÀU TÙY CHỈNH LOẠI BỎ HOÀN TOÀN MÀU ĐỎ/HỒNG (No Reds Palette)
+            NO_RED_PALETTE = [
+                '#1f77b4', # Xanh dương
+                '#ff7f0e', # Cam
+                '#2ca02c', # Xanh lá
+                '#9467bd', # Tím
+                '#8c564b', # Nâu
+                '#7f7f7f', # Xám
+                '#bcbd22', # Vàng chanh
+                '#17becf'  # Xanh da trời
+            ]
+            
             with col1:
                 st.subheader("3A. 供應商品質穩定度 (Supplier QC)")
                 st.info("💡 **追查材料端：** 盒子越長，代表該廠商的塗料在產線上表現越不穩定。")
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
-                    # 💡 Chuyển sang dải màu D3 chuyên nghiệp, đậm nhưng không bị "gắt"
-                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=px.colors.qualitative.D3)
+                    # Áp dụng bảng màu không có màu đỏ
+                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
                     
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                     
@@ -213,8 +252,8 @@ if uploaded_file is not None:
                     shift_df['班別'] = shift_df['班別'].str.replace('班績效%', '班')
                     
                     if not shift_df.empty:
-                        # 💡 Chuyển sang dải màu D3 chuyên nghiệp, đậm nhưng không bị "gắt"
-                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=px.colors.qualitative.D3)
+                        # Áp dụng bảng màu không có màu đỏ
+                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
                         
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                         
