@@ -10,6 +10,7 @@ import math
 # ==========================================
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
+# Áp dụng CSS để tạo khung viền chuyên nghiệp (Đã sửa lỗi unsafe_allow_html)
 st.markdown("""
 <style>
 .stPlotlyChart {
@@ -43,6 +44,7 @@ if uploaded_file is not None:
         else:
             df = pd.read_excel(uploaded_file, dtype=str)
 
+        # 1. 數據清洗 (Làm sạch dữ liệu)
         df.columns = df.columns.str.strip()
         df = df.dropna(how='all')
         
@@ -55,6 +57,7 @@ if uploaded_file is not None:
             if col in df.columns:
                 df[col] = df[col].fillna('未定義').astype(str).str.strip()
 
+        # 2. 數值轉換 (Chuyển đổi kiểu số)
         numeric_cols = ['合計理論耗用', '合計實際耗用', '合計績效%', '設定績效%']
         shift_cols = []
         for shift in ['A', 'B', 'C', 'D']:
@@ -68,6 +71,7 @@ if uploaded_file is not None:
                 df[col] = df[col].astype(str).str.replace(',', '', regex=False)
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
+        # 3. 補算指標 (Tính toán các cột chỉ số)
         if '合計績效%' not in df.columns or df['合計績效%'].isnull().all():
             df['合計績效%'] = np.where(df['合計實際耗用'] > 0, (df['合計理論耗用'] / df['合計實際耗用']) * 100, np.nan)
         
@@ -121,6 +125,7 @@ if uploaded_file is not None:
             "🎯 績效燈號 (Scatter)", "📊 耗用對比 (Bar)", "📉 差異分析 (Deviation)", "🚨 異常柏拉圖 (Pareto)", "📦 穩定度分析 (Box Plot)"
         ])
 
+        # --- TAB 1: SCATTER PLOT ---
         with viz_tab1:
             st.subheader(f"1. 塗料績效散佈圖 (共 {total_paints} 支，分 {num_charts} 組)")
             st.info("""
@@ -154,6 +159,7 @@ if uploaded_file is not None:
                             hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
                         )
                         
+                        # Đường mục tiêu 100%
                         fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                         fig.add_annotation(
                             x=1.01, y=100, xref="paper", yref="y",
@@ -167,13 +173,14 @@ if uploaded_file is not None:
                         y_min_pad, y_max_pad = math.floor(min_perf / 10) * 10 - 5, math.ceil(max_perf / 10) * 10 + 10
                         
                         fig.update_layout(
-                            plot_bgcolor='white', font=dict(color='black', size=13),
+                            plot_bgcolor='white', font=dict(color='black', size=13), margin=dict(r=100),
                             xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch, showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(size=11)),
                             yaxis=dict(title="<b>合計績效 (%)</b>", dtick=10, range=[y_min_pad, y_max_pad], gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                             height=650, title=f"<b>第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})</b>"
                         )
                         st.plotly_chart(fig, use_container_width=True)
 
+        # --- TAB 2: BAR CHART ---
         with viz_tab2:
             st.subheader("2. 理論耗用 vs 實際耗用")
             for i in range(num_charts):
@@ -194,6 +201,7 @@ if uploaded_file is not None:
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
 
+        # --- TAB 3: DEVIATION CHART ---
         with viz_tab3:
             st.subheader("3. 耗用差異 (Δ 實際 - 理論)")
             for i in range(num_charts):
@@ -209,13 +217,14 @@ if uploaded_file is not None:
                 fig_dev.add_annotation(x=1.01, y=0, xref="paper", yref="y", text="<b>基準 0</b>", showarrow=False, xanchor="left", yanchor="middle", font=dict(color="black", size=14))
                 
                 fig_dev.update_layout(
-                    plot_bgcolor='white', font=dict(color='black'),
+                    plot_bgcolor='white', font=dict(color='black'), margin=dict(r=80),
                     xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>差異量 (Δ耗用)</b>", gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                     height=600, title=f"<b>第 {i+1} 組差異分析</b>"
                 )
                 st.plotly_chart(fig_dev, use_container_width=True)
 
+        # --- TAB 4: PARETO CHART ---
         with viz_tab4:
             st.subheader("4. 異常超耗柏拉圖 (Pareto Chart) - 優先改善清單")
             st.info("💡 **決策重點：** 找出造成最多浪費的關鍵少數塗料 (80/20法則)。請優先處理累積曲線(藍線)前段的塗料。")
@@ -224,23 +233,25 @@ if uploaded_file is not None:
             if not pareto_df.empty:
                 pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
                 pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
-                top_pareto = pareto_df.head(40)
+                top_pareto = pareto_df.head(40) # Hiển thị Top 40 để không bị chật
 
                 fig_pareto = go.Figure()
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (單位)', marker_color='#d73027'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
 
                 fig_pareto.update_layout(
-                    plot_bgcolor='white', font=dict(color='black'), showlegend=False,
+                    plot_bgcolor='white', font=dict(color='black'),
                     xaxis=dict(tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>超耗量</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
                     yaxis2=dict(title="<b>累計影響 (%)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=1.5, linecolor='black'),
-                    height=650, title="<b>Top 40 超耗塗料排行</b>"
+                    height=650, title="<b>Top 40 超耗塗料排行</b>",
+                    legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center")
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
             else:
                 st.success("🎉 目前無超耗記錄，所有塗料皆達標或節省！")
 
+        # --- TAB 5: BOX PLOTS ---
         with viz_tab5:
             col1, col2 = st.columns(2)
             with col1:
@@ -249,10 +260,7 @@ if uploaded_file is not None:
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
                     fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'])
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red")
-                    
-                    # 💡 FIX TẠI ĐÂY: Tắt legend vì tên Nhà cung cấp đã có ở trục X rồi
                     fig_box1.update_layout(
-                        showlegend=False, 
                         plot_bgcolor='white', font=dict(color='black'),
                         xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                         yaxis=dict(title="<b>合計績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
@@ -270,10 +278,7 @@ if uploaded_file is not None:
                     if not shift_df.empty:
                         fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'])
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red")
-                        
-                        # 💡 FIX TẠI ĐÂY: Tắt legend vì tên Ca làm việc đã có ở trục X rồi
                         fig_box2.update_layout(
-                            showlegend=False,
                             plot_bgcolor='white', font=dict(color='black'),
                             xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                             yaxis=dict(title="<b>績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
@@ -285,10 +290,11 @@ if uploaded_file is not None:
                 else:
                     st.warning("資料中未包含班別欄位")
 
-        with st.expander("🔍 數據明細"):
+        # --- RAW DATA ---
+        with st.expander("🔍 檢視轉換後的底層資料 (Data View)"):
             st.dataframe(filtered_df)
 
     except Exception as e:
-        st.error(f"系統錯誤：{e}")
+        st.error(f"系統發生錯誤，請確認檔案格式是否正確。錯誤詳情：{e}")
 else:
-    st.info("👈 請上傳 MES 數據檔案。")
+    st.info("👈 請於左側面板上傳您的資料集 (Data Source) 以驅動分析引擎。")
