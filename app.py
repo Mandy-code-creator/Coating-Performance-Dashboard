@@ -9,7 +9,7 @@ import math
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (Y 軸刻度最佳化版)")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (Y 軸完美刻度版)")
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -19,7 +19,6 @@ uploaded_file = st.sidebar.file_uploader("請上傳資料檔 (支援 CSV 或 Exc
 
 if uploaded_file is not None:
     try:
-        # 讀取資料
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file, encoding='utf-8-sig', dtype=str)
         else:
@@ -114,7 +113,6 @@ if uploaded_file is not None:
                         labels = ['🔴 < 85%', '🟡 85% - 95%', '🔵 95% - 100%', '🟢 ≥ 100%']
                         plot_df['績效等級'] = np.select(conds, labels, default='未知')
                         
-                        # Làm tròn số % để khi hover chuột xem cho gọn
                         plot_df['合計績效%'] = plot_df['合計績效%'].round(2)
                         
                         fig = px.scatter(
@@ -128,14 +126,23 @@ if uploaded_file is not None:
                         
                         fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
                         
-                        # 💡 NÂNG CẤP TRỤC Y TẠI ĐÂY
+                        # --- 💡 THUẬT TOÁN ĐỆM TRỤC Y TẠI ĐÂY ---
+                        min_perf = plot_df['合計績效%'].min()
+                        max_perf = plot_df['合計績效%'].max()
+                        
+                        # Làm tròn xuống chục gần nhất, trừ đi 5 để hở lề dưới
+                        y_min_pad = math.floor(min_perf / 10) * 10 - 5
+                        # Làm tròn lên chục gần nhất, cộng thêm 10 để luôn hiện vạch kẻ phía trên điểm cao nhất
+                        y_max_pad = math.ceil(max_perf / 10) * 10 + 10
+                        
                         fig.update_layout(
                             xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch),
                             yaxis=dict(
                                 title="合計績效 (%)",
-                                dtick=10,             # Chia khoảng cách mỗi vạch là 10% (80, 90, 100, 110...)
-                                autorange=True,       # Tự động co giãn theo điểm cao nhất/thấp nhất
-                                gridcolor='#e5e5e5'   # Đổi màu vạch kẻ ngang cho dễ dóng dòng
+                                dtick=10,             
+                                range=[y_min_pad, y_max_pad], # Ép cứng khoảng cách chuẩn xác, bỏ autorange
+                                gridcolor='#e5e5e5',
+                                zeroline=False
                             ),
                             height=650,
                             title=f"第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})"
