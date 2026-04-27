@@ -92,11 +92,7 @@ if uploaded_file is not None:
         filtered_df = df_s2[df_s2['用途'].isin(sel_usage)]
 
         # ==========================================
-        # [ 3. DECISION MAKING KPIs (Đã dời vào Overview) ]
-        # ==========================================
-        
-        # ==========================================
-        # [ 4. VISUALIZATION - TỔ CHỨC LẠI LAYOUT ]
+        # [ 3. VISUALIZATION - TỔ CHỨC LẠI LAYOUT ]
         # ==========================================
         st.markdown("### 📈 視覺化分析與根因探討")
         
@@ -109,7 +105,7 @@ if uploaded_file is not None:
             "🍩 [總覽] 績效分佈 (Overview)", 
             "🚨 [決策] 優先改善清單 (Pareto)", 
             "📦 [根因] 穩定度分析 (Box Plot)", 
-            "🎯 [明細] 績效燈號 (Scatter)", 
+            "🎯 [全景] 績效燈號 (Scatter)", 
             "📊 [明細] 耗用對比 (Bar)", 
             "📉 [明細] 差異分析 (Deviation)"
         ])
@@ -220,18 +216,12 @@ if uploaded_file is not None:
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
                     fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                    
-                    # 💡 KHÔI PHỤC ICON 100%
-                    fig_box1.add_annotation(
-                        x=1.01, y=100, xref="paper", yref="y",
-                        text="<b>🎯 目標 100%</b>", showarrow=False,
-                        xanchor="left", yanchor="middle", font=dict(color="red", size=14)
-                    )
+                    fig_box1.add_annotation(x=1.01, y=100, xref="paper", yref="y", text="<b>🎯 目標 100%</b>", showarrow=False, xanchor="left", yanchor="middle", font=dict(color="red", size=14))
                     
                     fig_box1.update_layout(
                         showlegend=True, 
                         legend=dict(title="<b>油漆廠商</b>", x=1.02, y=1, xanchor="left", yanchor="top", bgcolor="rgba(255,255,255,0.8)", bordercolor="black", borderwidth=1),
-                        margin=dict(r=130), # Căn lề phải để nhãn và hộp legend không bị đè
+                        margin=dict(r=130), 
                         plot_bgcolor='white', font=dict(color='black'),
                         xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                         yaxis=dict(title="<b>合計績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
@@ -249,18 +239,12 @@ if uploaded_file is not None:
                     if not shift_df.empty:
                         fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                        
-                        # 💡 KHÔI PHỤC ICON 100%
-                        fig_box2.add_annotation(
-                            x=1.01, y=100, xref="paper", yref="y",
-                            text="<b>🎯 目標 100%</b>", showarrow=False,
-                            xanchor="left", yanchor="middle", font=dict(color="red", size=14)
-                        )
+                        fig_box2.add_annotation(x=1.01, y=100, xref="paper", yref="y", text="<b>🎯 目標 100%</b>", showarrow=False, xanchor="left", yanchor="middle", font=dict(color="red", size=14))
                         
                         fig_box2.update_layout(
                             showlegend=True,
                             legend=dict(title="<b>班別</b>", x=1.02, y=1, xanchor="left", yanchor="top", bgcolor="rgba(255,255,255,0.8)", bordercolor="black", borderwidth=1),
-                            margin=dict(r=130), # Căn lề phải
+                            margin=dict(r=130),
                             plot_bgcolor='white', font=dict(color='black'),
                             xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                             yaxis=dict(title="<b>績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
@@ -272,51 +256,51 @@ if uploaded_file is not None:
                 else:
                     st.warning("資料中未包含班別欄位")
 
-        # --- 4. MICRO VIEW: SCATTER PLOT ---
+        # --- 4. MACRO VIEW: FULL SCATTER PLOT (ĐÃ GỘP LẠI THÀNH 1 BIỂU ĐỒ) ---
         with tab_scatter:
-            st.subheader(f"4. 單一塗料績效燈號追蹤 (共 {total_paints} 支，分 {num_charts} 組)")
-            st.info("💡 圓圈大小代表**「理論耗用量」**。請尋找**「大紅圈」**深入調查！")
+            st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
+            st.info("💡 **全景模式：** 為避免畫面擁擠，X 軸已替換為數字「序號」。**請將游標懸停在圓圈上，即可查看該點對應的確切【塗料編號】與詳細資訊。**")
             
             if not filtered_df.empty and total_paints > 0:
-                for i in range(num_charts):
-                    start_idx = i * items_per_chart
-                    end_idx = min(start_idx + items_per_chart, total_paints)
-                    current_batch = sort_order[start_idx:end_idx]
-                    
-                    plot_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)].copy()
-                    plot_df = plot_df.dropna(subset=['合計理論耗用', '合計績效%'])
-                    plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
+                plot_df = filtered_df.dropna(subset=['合計理論耗用', '合計績效%']).copy()
+                plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
 
-                    if not plot_df.empty:
-                        plot_df['合計績效%'] = plot_df['合計績效%'].round(2)
-                        fig = px.scatter(
-                            plot_df, x='塗料編號', y='合計績效%', color='績效等級',
-                            color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                            size='合計理論耗用', size_max=35,
-                            category_orders={"績效等級": labels_global},
-                            hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
-                        )
-                        fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                        
-                        # 💡 KHÔI PHỤC ICON 100%
-                        fig.add_annotation(
-                            x=1.01, y=100, xref="paper", yref="y",
-                            text="<b>🎯 目標 100%</b>", showarrow=False,
-                            xanchor="left", yanchor="middle", font=dict(color="red", size=14)
-                        )
-                        
-                        fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
-                        
-                        min_perf, max_perf = plot_df['合計績效%'].min(), plot_df['合計績效%'].max()
-                        y_min_pad, y_max_pad = math.floor(min_perf / 10) * 10 - 5, math.ceil(max_perf / 10) * 10 + 10
-                        
-                        fig.update_layout(
-                            plot_bgcolor='white', font=dict(color='black', size=13), margin=dict(r=100),
-                            xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch, showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(size=11)),
-                            yaxis=dict(title="<b>合計績效 (%)</b>", dtick=10, range=[y_min_pad, y_max_pad], gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                            height=650, title=f"<b>第 {i+1} 組塗料燈號 ({start_idx+1} - {end_idx})</b>"
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
+                if not plot_df.empty:
+                    plot_df['合計績效%'] = plot_df['合計績效%'].round(2)
+                    
+                    # 💡 TẠO CỘT SỐ THỨ TỰ (Index) THAY CHO MÃ SƠN Ở TRỤC X
+                    seq_map = {code: i+1 for i, code in enumerate(sort_order)}
+                    plot_df['塗料序號'] = plot_df['塗料編號'].map(seq_map)
+                    
+                    fig = px.scatter(
+                        plot_df, x='塗料序號', y='合計績效%', color='績效等級',
+                        color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
+                        size='合計理論耗用', size_max=35,
+                        category_orders={"績效等級": labels_global},
+                        hover_name='塗料編號', # 💡 Đưa mã sơn in đậm lên đầu khung hover
+                        hover_data={'塗料序號': False, '線別': True, '用途': True, '合計理論耗用': True, '合計實際耗用': True} # Ẩn số thứ tự đi khi hover
+                    )
+                    
+                    fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
+                    fig.add_annotation(
+                        x=1.01, y=100, xref="paper", yref="y",
+                        text="<b>🎯 目標 100%</b>", showarrow=False,
+                        xanchor="left", yanchor="middle", font=dict(color="red", size=14)
+                    )
+                    
+                    fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
+                    
+                    min_perf, max_perf = plot_df['合計績效%'].min(), plot_df['合計績效%'].max()
+                    y_min_pad, y_max_pad = math.floor(min_perf / 10) * 10 - 5, math.ceil(max_perf / 10) * 10 + 10
+                    
+                    fig.update_layout(
+                        plot_bgcolor='white', font=dict(color='black', size=13), margin=dict(r=100),
+                        # Trục X giờ hiển thị số, không cần xoay nhãn nữa
+                        xaxis=dict(title="<b>塗料排序序號 (1 到 N)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                        yaxis=dict(title="<b>合計績效 (%)</b>", dtick=10, range=[y_min_pad, y_max_pad], gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                        height=700, title=f"<b>全廠塗料績效分佈圖</b>"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
 
         # --- 5. MICRO VIEW: BAR CHART ---
         with tab_bar:
@@ -351,13 +335,7 @@ if uploaded_file is not None:
                 df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                 fig_dev.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
-                
-                # 💡 KHÔI PHỤC ICON 基準 0 (Mốc 0)
-                fig_dev.add_annotation(
-                    x=1.01, y=0, xref="paper", yref="y", 
-                    text="<b>基準 0</b>", showarrow=False, 
-                    xanchor="left", yanchor="middle", font=dict(color="black", size=14)
-                )
+                fig_dev.add_annotation(x=1.01, y=0, xref="paper", yref="y", text="<b>基準 0</b>", showarrow=False, xanchor="left", yanchor="middle", font=dict(color="black", size=14))
                 
                 fig_dev.update_layout(
                     plot_bgcolor='white', font=dict(color='black'), margin=dict(r=80),
