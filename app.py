@@ -9,7 +9,7 @@ import math
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (多圖表捲動模式 - 每組 40 支)")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (分組捲動 & -90° 標籤優化版)")
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -33,14 +33,23 @@ if uploaded_file is not None:
             df['線別'] = df['線別'].astype(str).str.strip()
             df = df[(df['線別'] != '線別') & (df['線別'] != 'nan') & (df['線別'] != '')]
 
+        cat_cols = ['線別', '塗料編號', '用途', '年月', '油漆廠商', '顏色', '樹脂']
+        for col in cat_cols:
+            if col in df.columns:
+                df[col] = df[col].fillna('未定義').astype(str).str.strip()
+
         # 2. 數值轉換
-        numeric_cols = ['合計理論耗用', '合計實際耗用', '合計績效%']
+        numeric_cols = ['合計理論耗用', '合計實際耗用', '合計績效%', '設定績效%']
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.replace(',', '', regex=False)
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        # 3. 建立排序群組
+        # 3. 補算指標
+        if '合計績效%' not in df.columns or df['合計績效%'].isnull().all():
+            df['合計績效%'] = np.where(df['合計實際耗用'] > 0, (df['合計理論耗用'] / df['合計實際耗用']) * 100, np.nan)
+        
+        df['Δ耗用 (Deviation)'] = df['合計實際耗用'] - df['合計理論耗用']
         df['Sort_Group'] = df['塗料編號'].apply(lambda x: 'GE00_01_Group' if any(g in str(x) for g in ['GE00', 'GE01']) else str(x))
 
         # ==========================================
@@ -57,49 +66,110 @@ if uploaded_file is not None:
         filtered_df = df_s2[df_s2['用途'].isin(sel_usage)]
 
         # ==========================================
-        # [ 3. 視覺化分析 - 自動分段顯示 ]
+        # [ 3. DECISION MAKING KPIs ]
         # ==========================================
-        all_paints = filtered_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
-        total_paints = len(all_paints)
+        st.markdown("### 🎯 決策指標 (Decision Making KPIs)")
+        if not filtered_df.empty:
+            k1, k2, k3, k4 = st.columns(4)
+            avg_perf = filtered_df['合計績效%'].mean()
+            total_delta = filtered_df['Δ耗用 (Deviation)'].sum()
+            
+            k1.metric("平均總績效", f"{avg_perf:.2f}%")
+            k2.metric("總差異耗用", f"{total_delta:,.0f}", delta_color="inverse")
+            
+            worst_perf_df = filtered_df.dropna(subset=['合計績效%'])
+            if not worst_perf_df.empty:
+                worst_row = worst_perf_df.loc[worst_perf_df['合計績效%'].idxmin()]
+                k3.metric("優先改善對象", f"{worst_row['塗料編號']}", f"{worst_row['合計績效%']:.2f}%")
+            k4.metric("分析塗料總數", f"{len(filtered_df['塗料編號'].unique())} 支")
+
+        st.divider()
+
+        # ==========================================
+        # [ 4. VISUALIZATION ]
+        # ==========================================
+        st.markdown("### 📊 核心視覺化分析")
+        
+        sort_order = filtered_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
+        total_paints = len(sort_order)
         items_per_chart = 40
         num_charts = math.ceil(total_paints / items_per_chart)
 
-        st.subheader(f"📈 績效燈號散佈圖 (共 {total_paints} 支塗料，分 {num_charts} 組顯示)")
+        viz_tab1, viz_tab2, viz_tab3 = st.tabs(["🎯 績效燈號散佈圖", "📊 耗用量對比", "📉 差異分析"])
 
-        if total_paints > 0:
-            # 💡 Vòng lặp tự động tạo biểu đồ
+        with viz_tab1:
+            st.subheader(f"1. 塗料績效散佈圖 (共 {total_paints} 支，分 {num_charts} 組)")
+            if not filtered_df.empty and total_paints > 0:
+                for i in range(num_charts):
+                    start_idx = i * items_per_chart
+                    end_idx = min(start_idx + items_per_chart, total_paints)
+                    current_batch = sort_order[start_idx:end_idx]
+                    
+                    plot_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)].copy()
+                    plot_df = plot_df.dropna(subset=['合計理論耗用', '合計績效%'])
+                    plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
+
+                    if not plot_df.empty:
+                        conds = [plot_df['合計績效%'] < 85, (plot_df['合計績效%'] < 95), (plot_df['合計績效%'] < 100), plot_df['合計績效%'] >= 100]
+                        labels = ['🔴 < 85%', '🟡 85% - 95%', '🔵 95% - 100%', '🟢 ≥ 100%']
+                        plot_df['績效等級'] = np.select(conds, labels, default='未知')
+                        
+                        fig = px.scatter(
+                            plot_df, x='塗料編號', y='合計績效%', color='績效等級',
+                            color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
+                            size='合計理論耗用', size_max=35,
+                            category_orders={"績效等級": labels},
+                            hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
+                        )
+                        fig.add_hline(y=100, line_dash="dash", line_color="black")
+                        
+                        # 💡 Cập nhật: Độ đậm nét cao & Xoay dọc nhãn -90 độ
+                        fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
+                        
+                        fig.update_layout(
+                            xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch),
+                            height=650,
+                            title=f"第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+
+        with viz_tab2:
+            st.subheader("2. 理論耗用 vs 實際耗用")
             for i in range(num_charts):
                 start_idx = i * items_per_chart
-                end_idx = min(start_idx + items_per_chart, total_paints)
-                current_batch = all_paints[start_idx:end_idx]
+                current_batch = sort_order[start_idx : start_idx + items_per_chart]
+                batch_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)]
                 
-                # Lọc dữ liệu cho cụm hiện tại
-                batch_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)].copy()
+                df_bar = batch_df.groupby('塗料編號')[['合計理論耗用', '合計實際耗用']].sum().reset_index()
+                fig_bar = go.Figure()
+                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論耗用', marker_color='#34495e'))
+                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際耗用', marker_color='#3498db'))
                 
-                # Thiết lập màu sắc
-                conds = [batch_df['合計績效%'] < 85, (batch_df['合計績效%'] < 95), (batch_df['合計績效%'] < 100), batch_df['合計績效%'] >= 100]
-                labels = ['🔴 < 85%', '🟡 85% - 95%', '🔵 95% - 100%', '🟢 ≥ 100%']
-                batch_df['績效等級'] = np.select(conds, labels, default='未知')
+                fig_bar.update_layout(
+                    barmode='group', 
+                    xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch),
+                    height=600,
+                    title=f"第 {i+1} 組耗用對比"
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
 
-                with st.expander(f"📊 第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})", expanded=True):
-                    fig = px.scatter(
-                        batch_df, x='塗料編號', y='合計績效%', color='績效等級',
-                        color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                        size='合計理論耗用', size_max=30,
-                        category_orders={"績效等級": labels},
-                        hover_data=['合計理論耗用', '合計實際耗用']
-                    )
-                    fig.add_hline(y=100, line_dash="dash", line_color="black")
-                    fig.update_layout(
-                        xaxis=dict(dtick=1, tickangle=-45, categoryorder='array', categoryarray=current_batch),
-                        height=500,
-                        margin=dict(t=20, b=20)
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("查無資料，請調整篩選條件。")
+        with viz_tab3:
+            st.subheader("3. 耗用差異 (Δ 實際 - 理論)")
+            for i in range(num_charts):
+                start_idx = i * items_per_chart
+                current_batch = sort_order[start_idx : start_idx + items_per_chart]
+                batch_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)]
+                
+                df_dev = batch_df.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+                df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
+                fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
+                fig_dev.update_layout(xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch), height=600, title=f"第 {i+1} 組差異分析")
+                st.plotly_chart(fig_dev, use_container_width=True)
+
+        with st.expander("🔍 數據明細"):
+            st.dataframe(filtered_df)
 
     except Exception as e:
         st.error(f"系統錯誤：{e}")
 else:
-    st.info("👈 請上傳數據檔案以開始分析。")
+    st.info("👈 請上傳 MES 數據檔案。")
