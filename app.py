@@ -135,7 +135,6 @@ if uploaded_file is not None:
             st.subheader("1. 整體績效分佈佔比 (Macro Overview)")
             st.info("💡 **高階視角：** 快速檢視當前產線的健康度。若紅色區塊過大，代表整體生產出現系統性耗損。")
             
-            # 💡 Đã bổ sung hiển thị tổng số mã sơn
             st.markdown(f"#### 📌 分析區間內塗料總數：共 **<span style='color:#2c3e50;'>{total_paints}</span>** 支", unsafe_allow_html=True)
             
             pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
@@ -200,8 +199,12 @@ if uploaded_file is not None:
                     fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'])
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red")
                     
+                    # 💡 FIX: Bật lại Legend và dời ra lề phải an toàn
                     fig_box1.update_layout(
-                        showlegend=False, plot_bgcolor='white', font=dict(color='black'),
+                        showlegend=True, 
+                        legend=dict(title="<b>油漆廠商</b>", x=1.02, y=1, xanchor="left", yanchor="top", bgcolor="rgba(255,255,255,0.8)", bordercolor="black", borderwidth=1),
+                        margin=dict(r=130), # Mở rộng lề phải để chứa Legend
+                        plot_bgcolor='white', font=dict(color='black'),
                         xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                         yaxis=dict(title="<b>合計績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
                         height=550
@@ -219,8 +222,12 @@ if uploaded_file is not None:
                         fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'])
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red")
                         
+                        # 💡 FIX: Bật lại Legend và dời ra lề phải an toàn
                         fig_box2.update_layout(
-                            showlegend=False, plot_bgcolor='white', font=dict(color='black'),
+                            showlegend=True,
+                            legend=dict(title="<b>班別</b>", x=1.02, y=1, xanchor="left", yanchor="top", bgcolor="rgba(255,255,255,0.8)", bordercolor="black", borderwidth=1),
+                            margin=dict(r=100),
+                            plot_bgcolor='white', font=dict(color='black'),
                             xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                             yaxis=dict(title="<b>績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
                             height=550
