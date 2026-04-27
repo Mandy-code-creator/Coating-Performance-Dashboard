@@ -122,7 +122,7 @@ if uploaded_file is not None:
                 
                 k1.metric("平均總績效 (理論值基準)", f"{avg_perf:.2f}%")
                 k2.metric("總差異耗用 (實際 - 理論)", f"{total_delta:,.0f}", delta_color="inverse")
-                k3.metric("分析區間內塗料總數", f"{len(filtered_df['塗料編號'].unique())} 支")
+                k3.metric("分析區間內塗料總數", f"{total_paints} 支")
             
             st.divider()
             
@@ -216,13 +216,7 @@ if uploaded_file is not None:
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
                     fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                    
-                    # 💡 FIX LỖI ĐÈ CHỮ: Đưa chữ 100% vào TRONG khung biểu đồ (x=0.99), nằm trên đường line (yanchor=bottom)
-                    fig_box1.add_annotation(
-                        x=0.99, y=100, xref="paper", yref="y",
-                        text="<b>🎯 目標 100%</b>", showarrow=False,
-                        xanchor="right", yanchor="bottom", font=dict(color="red", size=14)
-                    )
+                    fig_box1.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 目標 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14))
                     
                     fig_box1.update_layout(
                         showlegend=True, 
@@ -245,13 +239,7 @@ if uploaded_file is not None:
                     if not shift_df.empty:
                         fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                        
-                        # 💡 FIX LỖI ĐÈ CHỮ: Đưa chữ vào TRONG khung biểu đồ
-                        fig_box2.add_annotation(
-                            x=0.99, y=100, xref="paper", yref="y",
-                            text="<b>🎯 目標 100%</b>", showarrow=False,
-                            xanchor="right", yanchor="bottom", font=dict(color="red", size=14)
-                        )
+                        fig_box2.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 目標 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14))
                         
                         fig_box2.update_layout(
                             showlegend=True,
@@ -293,8 +281,6 @@ if uploaded_file is not None:
                     )
                     
                     fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                    
-                    # 💡 FIX LỖI ĐÈ CHỮ: Đưa chữ vào TRONG khung biểu đồ
                     fig.add_annotation(
                         x=0.99, y=100, xref="paper", yref="y",
                         text="<b>🎯 目標 100%</b>", showarrow=False,
@@ -306,9 +292,12 @@ if uploaded_file is not None:
                     min_perf, max_perf = plot_df['合計績效%'].min(), plot_df['合計績效%'].max()
                     y_min_pad, y_max_pad = math.floor(min_perf / 10) * 10 - 5, math.ceil(max_perf / 10) * 10 + 10
                     
+                    # 💡 TỰ ĐỘNG ĐIỀN CHÍNH XÁC SỐ TỔNG MÃ SƠN VÀO TRỤC X
+                    dynamic_x_title = f"<b>塗料排序序號 (1 到 {total_paints})</b>"
+                    
                     fig.update_layout(
                         plot_bgcolor='white', font=dict(color='black', size=13), margin=dict(r=100),
-                        xaxis=dict(title="<b>塗料排序序號 (1 到 N)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                        xaxis=dict(title=dynamic_x_title, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                         yaxis=dict(title="<b>合計績效 (%)</b>", dtick=10, range=[y_min_pad, y_max_pad], gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                         height=700, title=f"<b>全廠塗料績效分佈圖</b>"
                     )
@@ -347,13 +336,7 @@ if uploaded_file is not None:
                 df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                 fig_dev.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
-                
-                # 💡 FIX LỖI ĐÈ CHỮ: Đưa chữ vào TRONG khung biểu đồ
-                fig_dev.add_annotation(
-                    x=0.99, y=0, xref="paper", yref="y", 
-                    text="<b>基準 0</b>", showarrow=False, 
-                    xanchor="right", yanchor="bottom", font=dict(color="black", size=14)
-                )
+                fig_dev.add_annotation(x=0.99, y=0, xref="paper", yref="y", text="<b>基準 0</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="black", size=14))
                 
                 fig_dev.update_layout(
                     plot_bgcolor='white', font=dict(color='black'), margin=dict(r=80),
