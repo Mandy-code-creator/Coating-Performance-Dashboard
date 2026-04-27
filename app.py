@@ -134,36 +134,45 @@ if uploaded_file is not None:
         tab1, tab2, tab3, tab4 = st.tabs(["🔥 班別熱力圖 (Heatmap)", "📊 理論與實際比較 (Bar)", "📉 耗用差異分析 (Deviation)", "📈 趨勢與關聯分析 (Trend)"])
 
         with tab1:
-            st.subheader("1. 班別績效熱力圖 (Shift Performance Heatmap)")
-            st.markdown("核心分析：快速識別哪個班別在特定塗料上的表現最弱 (顏色越紅代表績效越低)")
+            st.subheader("1. 塗料整體績效熱力圖 (Overall Performance Heatmap)")
+            st.markdown("核心分析：快速識別特定塗料的整體表現 (顏色越紅代表績效越低)")
             
-            # [ DATA TRANSFORM ] Unpivot A/B/C/D
-            shift_cols = [c for c in ['A班績效%', 'B班績效%', 'C班績效%', 'D班績效%'] if c in filtered_df.columns]
-            if shift_cols:
-                # 建立結構：塗料編號 | 班別 | 績效%
-                df_unpivot = pd.melt(filtered_df, 
-                                     id_vars=['塗料編號'], 
-                                     value_vars=shift_cols, 
-                                     var_name='班別', 
-                                     value_name='績效%')
-                df_unpivot['班別'] = df_unpivot['班別'].str.replace('班績效%', '')
-                df_unpivot = df_unpivot.dropna(subset=['績效%'])
+            # 檢查是否有 合計績效% 欄位
+            if '合計績效%' in filtered_df.columns:
+                # 依據塗料編號計算平均合計績效 (以防多筆相同編號)
+                heatmap_data = filtered_df.groupby('塗料編號')['合計績效%'].mean().reset_index()
                 
-                # 計算平均值以繪製熱力圖
-                heatmap_data = df_unpivot.groupby(['塗料編號', '班別'])['績效%'].mean().reset_index()
+                # 新增一個固定欄位名稱作為 X 軸
+                heatmap_data['指標'] = '合計績效 (Total %)'
+                
+                # 轉為 Pivot 格式矩陣
+                pivot_df = heatmap_data.pivot(index='塗料編號', columns='指標', values='合計績效%')
+                
+                # 💡 動態計算高度：每個塗料編號分配 25 pixel 的高度，確保 129 個塗料也能全部顯示
+                unique_paints = pivot_df.index.tolist()
+                dynamic_height = max(400, len(unique_paints) * 25)
                 
                 fig_heat = go.Figure(data=go.Heatmap(
-                    z=heatmap_data['績效%'],
-                    x=heatmap_data['班別'],
-                    y=heatmap_data['塗料編號'],
-                    colorscale='RdYlGn', # 紅(低) -> 黃 -> 綠(高)
+                    z=pivot_df.values,
+                    x=pivot_df.columns.tolist(),
+                    y=unique_paints,
+                    text=np.round(pivot_df.values, 1), # 顯示 1 位小數點
+                    texttemplate="%{text}%",           # 將 % 符號加進方塊內
+                    colorscale='RdYlGn',               # 紅(低) -> 黃 -> 綠(高)
                     hoverongaps=False
                 ))
-                fig_heat.update_layout(xaxis_title="班別 (Shift)", yaxis_title="塗料編號", height=600)
+                
+                fig_heat.update_layout(
+                    xaxis_title="", 
+                    yaxis_title="塗料編號", 
+                    height=dynamic_height,             # 套用動態高度
+                    yaxis=dict(dtick=1),               # 💡 強制顯示所有 Y 軸標籤 (不自動隱藏)
+                    xaxis=dict(side='top')             # 將 X 軸標籤移至頂部
+                )
+                
                 st.plotly_chart(fig_heat, use_container_width=True)
             else:
-                st.info("資料缺少班別績效欄位，無法繪製熱力圖。")
-
+                st.info("資料缺少「合計績效%」欄位，無法繪製熱力圖。")
         with tab2:
             st.subheader("2. 理論耗用 vs 實際耗用 (Theoretical vs Actual)")
             # 依據塗料編號分組加總
