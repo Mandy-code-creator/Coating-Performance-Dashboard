@@ -10,15 +10,14 @@ import math
 # ==========================================
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
-# Áp dụng CSS để tạo khung viền chuyên nghiệp (Đã sửa lỗi unsafe_allow_html)
+# Áp dụng CSS để tạo khung viền chuyên nghiệp, loại bỏ thanh cuộn
 st.markdown("""
 <style>
 .stPlotlyChart {
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     background-color: white;
-    padding: 10px;
-    margin-bottom: 20px;
+    overflow: hidden;
 }
 [data-testid="stKPIs"] div{
     border: 1px solid #e6e6e6;
@@ -78,6 +77,11 @@ if uploaded_file is not None:
         df['Δ耗用 (Deviation)'] = df['合計實際耗用'] - df['合計理論耗用']
         df['Sort_Group'] = df['塗料編號'].apply(lambda x: 'GE00_01_Group' if any(g in str(x) for g in ['GE00', 'GE01']) else str(x))
 
+        # TÍNH TOÁN NHÓM HIỆU SUẤT TRƯỚC CHO TOÀN BỘ DATA (Dùng cho Pie Chart)
+        conds_global = [df['合計績效%'] < 85, (df['合計績效%'] >= 85) & (df['合計績效%'] < 95), (df['合計績效%'] >= 95) & (df['合計績效%'] < 100), df['合計績效%'] >= 100]
+        labels_global = ['🔴 < 85%', '🟡 85% - 95%', '🔵 95% - 100%', '🟢 ≥ 100%']
+        df['績效等級'] = np.select(conds_global, labels_global, default='未知')
+
         # ==========================================
         # [ 2. DASHBOARD FILTER ]
         # ==========================================
@@ -121,8 +125,9 @@ if uploaded_file is not None:
         items_per_chart = 40
         num_charts = math.ceil(total_paints / items_per_chart)
 
-        viz_tab1, viz_tab2, viz_tab3, viz_tab4, viz_tab5 = st.tabs([
-            "🎯 績效燈號 (Scatter)", "📊 耗用對比 (Bar)", "📉 差異分析 (Deviation)", "🚨 異常柏拉圖 (Pareto)", "📦 穩定度分析 (Box Plot)"
+        viz_tab1, viz_tab2, viz_tab3, viz_tab4, viz_tab5, viz_tab6 = st.tabs([
+            "🎯 績效燈號 (Scatter)", "📊 耗用對比 (Bar)", "📉 差異分析 (Deviation)", 
+            "🚨 異常柏拉圖 (Pareto)", "📦 穩定度分析 (Box Plot)", "🍩 績效分佈 (Pie)"
         ])
 
         # --- TAB 1: SCATTER PLOT ---
@@ -146,20 +151,16 @@ if uploaded_file is not None:
                     plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
 
                     if not plot_df.empty:
-                        conds = [plot_df['合計績效%'] < 85, (plot_df['合計績效%'] < 95), (plot_df['合計績效%'] < 100), plot_df['合計績效%'] >= 100]
-                        labels = ['🔴 < 85%', '🟡 85% - 95%', '🔵 95% - 100%', '🟢 ≥ 100%']
-                        plot_df['績效等級'] = np.select(conds, labels, default='未知')
                         plot_df['合計績效%'] = plot_df['合計績效%'].round(2)
                         
                         fig = px.scatter(
                             plot_df, x='塗料編號', y='合計績效%', color='績效等級',
                             color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
                             size='合計理論耗用', size_max=35,
-                            category_orders={"績效等級": labels},
+                            category_orders={"績效等級": labels_global},
                             hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
                         )
                         
-                        # Đường mục tiêu 100%
                         fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                         fig.add_annotation(
                             x=1.01, y=100, xref="paper", yref="y",
@@ -233,19 +234,18 @@ if uploaded_file is not None:
             if not pareto_df.empty:
                 pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
                 pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
-                top_pareto = pareto_df.head(40) # Hiển thị Top 40 để không bị chật
+                top_pareto = pareto_df.head(40)
 
                 fig_pareto = go.Figure()
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (單位)', marker_color='#d73027'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
 
                 fig_pareto.update_layout(
-                    plot_bgcolor='white', font=dict(color='black'),
+                    plot_bgcolor='white', font=dict(color='black'), showlegend=False,
                     xaxis=dict(tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>超耗量</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
                     yaxis2=dict(title="<b>累計影響 (%)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=1.5, linecolor='black'),
-                    height=650, title="<b>Top 40 超耗塗料排行</b>",
-                    legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center")
+                    height=650, title="<b>Top 40 超耗塗料排行</b>"
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
             else:
@@ -260,8 +260,9 @@ if uploaded_file is not None:
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
                     fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'])
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red")
+                    
                     fig_box1.update_layout(
-                        plot_bgcolor='white', font=dict(color='black'),
+                        showlegend=False, plot_bgcolor='white', font=dict(color='black'),
                         xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                         yaxis=dict(title="<b>合計績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
                         height=550
@@ -278,8 +279,9 @@ if uploaded_file is not None:
                     if not shift_df.empty:
                         fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'])
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red")
+                        
                         fig_box2.update_layout(
-                            plot_bgcolor='white', font=dict(color='black'),
+                            showlegend=False, plot_bgcolor='white', font=dict(color='black'),
                             xaxis=dict(showline=True, linewidth=1.5, linecolor='black', mirror=True),
                             yaxis=dict(title="<b>績效 (%)</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
                             height=550
@@ -290,54 +292,45 @@ if uploaded_file is not None:
                 else:
                     st.warning("資料中未包含班別欄位")
 
-        # --- RAW DATA ---
-        with st.expander("🔍 檢視轉換後的底層資料 (Data View)"):
+        # --- TAB 6: PIE CHART ---
+        with viz_tab6:
+            st.subheader("7. 整體績效分佈佔比 (Pie Chart)")
+            st.info("💡 **宏觀視角：** 快速檢視當前篩選條件下，各績效等級的塗料數量與比例。若紅色區塊過大，代表產線整體耗損嚴重。")
+            
+            pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
+            if not pie_df.empty:
+                pie_counts = pie_df['績效等級'].value_counts().reset_index()
+                pie_counts.columns = ['績效等級', '塗料數量']
+                
+                fig_pie = px.pie(
+                    pie_counts, values='塗料數量', names='績效等級',
+                    color='績效等級',
+                    color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
+                    hole=0.4
+                )
+                
+                fig_pie.update_traces(
+                    textposition='inside', 
+                    textinfo='percent+label+value',
+                    marker=dict(line=dict(color='white', width=2)),
+                    textfont_size=14
+                )
+                
+                fig_pie.update_layout(
+                    plot_bgcolor='white', font=dict(color='black', size=14),
+                    height=550, title="<b>塗料績效等級分佈 (總數與比例)</b>",
+                    showlegend=True,
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                st.warning("無有效的績效數據可供繪製。")
+
+        # --- RAW DATA EXPANDER ---
+        with st.expander("🔍 數據明細"):
             st.dataframe(filtered_df)
 
     except Exception as e:
-        st.error(f"系統發生錯誤，請確認檔案格式是否正確。錯誤詳情：{e}")
-        else:
-            st.info("👈 請於左側面板上傳您的資料集 (Data Source) 以驅動分析引擎。")
-        # --- 🌟 TÍNH NĂNG MỚI: TAB 6 PIE CHART ---
-                with viz_tab6:
-                    st.subheader("7. 整體績效分佈佔比 (Pie Chart)")
-                    st.info("💡 **宏觀視角：** 快速檢視當前篩選條件下，各績效等級的塗料數量與比例。若紅色區塊過大，代表產線整體耗損嚴重。")
-                    
-                    pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
-                    if not pie_df.empty:
-                        # Đếm số lượng mã sơn theo từng nhóm màu
-                        pie_counts = pie_df['績效等級'].value_counts().reset_index()
-                        pie_counts.columns = ['績效等級', '塗料數量']
-                        
-                        # Vẽ biểu đồ Donut
-                        fig_pie = px.pie(
-                            pie_counts, values='塗料數量', names='績效等級',
-                            color='績效等級',
-                            color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                            hole=0.4 # Biến thành Donut chart (có lỗ ở giữa) cho sang trọng
-                        )
-                        
-                        fig_pie.update_traces(
-                            textposition='inside', 
-                            textinfo='percent+label+value', # Hiển thị cả % + Tên nhãn + Số lượng
-                            marker=dict(line=dict(color='white', width=2)), # Viền trắng giữa các lát cắt
-                            textfont_size=14
-                        )
-                        
-                        fig_pie.update_layout(
-                            plot_bgcolor='white', font=dict(color='black', size=14),
-                            height=550, title="<b>塗料績效等級分佈 (總數與比例)</b>",
-                            showlegend=True,
-                            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
-                        )
-                        st.plotly_chart(fig_pie, use_container_width=True)
-                    else:
-                        st.warning("無有效的績效數據可供繪製。")
-        
-                with st.expander("🔍 數據明細"):
-                    st.dataframe(filtered_df)
-        
-            except Exception as e:
-                st.error(f"系統錯誤：{e}")
-        else:
-            st.info("👈 請上傳 MES 數據檔案。")
+        st.error(f"系統錯誤：{e}")
+else:
+    st.info("👈 請上傳 MES 數據檔案。")
