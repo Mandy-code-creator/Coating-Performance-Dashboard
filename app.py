@@ -9,7 +9,7 @@ import math
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (基準線強化對比版)")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (高對比度專業報表版)")
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -98,6 +98,15 @@ if uploaded_file is not None:
 
         with viz_tab1:
             st.subheader(f"1. 塗料績效散佈圖 (共 {total_paints} 支，分 {num_charts} 組)")
+            
+            # --- 💡 CẬP NHẬT: GHI CHÚ RÕ RÀNG Ý NGHĨA BIỂU ĐỒ ---
+            st.info("""
+            **💡 讀圖提示 (Hướng dẫn đọc biểu đồ):**
+            * **🎨 顏色 (Màu sắc):** 代表績效狀態 (🔴 嚴重超耗 < 85% | 🟡 注意 85-95% | 🔵 接近理論 95-100% | 🟢 達標/節省 ≥ 100%)
+            * **⭕ 圓圈大小 (Kích thước):** 代表 **「理論耗用量」**。圓圈越大，代表該塗料在產線上的使用量與占比越大。
+            * **🔥 決策重點 (Trọng tâm):** 請優先尋找 **「大紅圈」** (使用量極大且嚴重超耗的塗料)，這代表最大的成本流失！
+            """)
+            
             if not filtered_df.empty and total_paints > 0:
                 for i in range(num_charts):
                     start_idx = i * items_per_chart
@@ -123,14 +132,13 @@ if uploaded_file is not None:
                             hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
                         )
                         
-                        # --- 💡 NÂNG CẤP ĐƯỜNG 100% TẠI ĐÂY ---
                         fig.add_hline(
                             y=100, 
                             line_dash="dash", 
-                            line_color="red",      # Đổi thành màu đỏ
-                            line_width=2.5,        # Làm dày đường nét
-                            annotation_text="<b>🎯 目標 100%</b>", # Thêm nhãn chữ nổi bật
-                            annotation_position="top left",       # Nằm ở góc trên bên trái sát trục Y
+                            line_color="red",      
+                            line_width=2.5,        
+                            annotation_text="<b>🎯 目標 100%</b>", 
+                            annotation_position="top right",
                             annotation_font=dict(color="red", size=14)
                         )
                         
@@ -203,10 +211,11 @@ if uploaded_file is not None:
                 df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                 
-                # --- 💡 NÂNG CẤP ĐƯỜNG 0 TẠI ĐÂY LUN ---
                 fig_dev.add_hline(
                     y=0, line_dash="solid", line_color="black", line_width=2.5,
-                    annotation_text="<b>基準 0</b>", annotation_position="top left", annotation_font=dict(color="black", size=14)
+                    annotation_text="<b>基準 0</b>", 
+                    annotation_position="top right", 
+                    annotation_font=dict(color="black", size=14)
                 )
                 
                 fig_dev.update_layout(
