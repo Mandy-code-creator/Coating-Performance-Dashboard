@@ -9,7 +9,7 @@ import math
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (Y 軸完美刻度版)")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (高對比度專業報表版)")
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -122,30 +122,36 @@ if uploaded_file is not None:
                             category_orders={"績效等級": labels},
                             hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
                         )
-                        fig.add_hline(y=100, line_dash="dash", line_color="black")
+                        # Đường 100% đen đậm nét đứt
+                        fig.add_hline(y=100, line_dash="dash", line_color="black", line_width=2)
                         
                         fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
                         
-                        # --- 💡 THUẬT TOÁN ĐỆM TRỤC Y TẠI ĐÂY ---
                         min_perf = plot_df['合計績效%'].min()
                         max_perf = plot_df['合計績效%'].max()
-                        
-                        # Làm tròn xuống chục gần nhất, trừ đi 5 để hở lề dưới
                         y_min_pad = math.floor(min_perf / 10) * 10 - 5
-                        # Làm tròn lên chục gần nhất, cộng thêm 10 để luôn hiện vạch kẻ phía trên điểm cao nhất
                         y_max_pad = math.ceil(max_perf / 10) * 10 + 10
                         
+                        # --- 💡 ÁP DỤNG KHUNG BAO VÀ FONT ĐẬM TẠI ĐÂY ---
                         fig.update_layout(
-                            xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch),
+                            plot_bgcolor='white', # Nền trắng tinh để nổi bật viền
+                            font=dict(color='black', size=13), # Chữ toàn cục màu đen đậm
+                            xaxis=dict(
+                                dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch,
+                                showline=True, linewidth=1.5, linecolor='black', mirror=True, # Khung viền ngang
+                                tickfont=dict(color='black', size=11)
+                            ),
                             yaxis=dict(
-                                title="合計績效 (%)",
+                                title="<b>合計績效 (%)</b>", # In đậm tiêu đề trục
                                 dtick=10,             
-                                range=[y_min_pad, y_max_pad], # Ép cứng khoảng cách chuẩn xác, bỏ autorange
-                                gridcolor='#e5e5e5',
-                                zeroline=False
+                                range=[y_min_pad, y_max_pad], 
+                                gridcolor='#999999', gridwidth=1, # Đường kẻ ngang màu xám đậm
+                                zeroline=False,
+                                showline=True, linewidth=1.5, linecolor='black', mirror=True, # Khung viền dọc
+                                tickfont=dict(color='black', size=12)
                             ),
                             height=650,
-                            title=f"第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})"
+                            title=f"<b>第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})</b>"
                         )
                         st.plotly_chart(fig, use_container_width=True)
 
@@ -161,11 +167,21 @@ if uploaded_file is not None:
                 fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論耗用', marker_color='#34495e'))
                 fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際耗用', marker_color='#3498db'))
                 
+                # --- 💡 ÁP DỤNG KHUNG BAO VÀ FONT ĐẬM TẠI ĐÂY ---
                 fig_bar.update_layout(
+                    plot_bgcolor='white', font=dict(color='black'),
                     barmode='group', 
-                    xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch),
+                    xaxis=dict(
+                        dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch,
+                        showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(color='black')
+                    ),
+                    yaxis=dict(
+                        title="<b>耗用量</b>",
+                        gridcolor='#999999', gridwidth=1, zeroline=False,
+                        showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(color='black')
+                    ),
                     height=600,
-                    title=f"第 {i+1} 組耗用對比"
+                    title=f"<b>第 {i+1} 組耗用對比</b>"
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -179,7 +195,23 @@ if uploaded_file is not None:
                 df_dev = batch_df.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                 df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
-                fig_dev.update_layout(xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch), height=600, title=f"第 {i+1} 組差異分析")
+                fig_dev.add_hline(y=0, line_color="black", line_width=2)
+                
+                # --- 💡 ÁP DỤNG KHUNG BAO VÀ FONT ĐẬM TẠI ĐÂY ---
+                fig_dev.update_layout(
+                    plot_bgcolor='white', font=dict(color='black'),
+                    xaxis=dict(
+                        dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch,
+                        showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(color='black')
+                    ),
+                    yaxis=dict(
+                        title="<b>差異量 (Δ耗用)</b>",
+                        gridcolor='#999999', gridwidth=1, zeroline=False,
+                        showline=True, linewidth=1.5, linecolor='black', mirror=True, tickfont=dict(color='black')
+                    ),
+                    height=600, 
+                    title=f"<b>第 {i+1} 組差異分析</b>"
+                )
                 st.plotly_chart(fig_dev, use_container_width=True)
 
         with st.expander("🔍 數據明細"):
