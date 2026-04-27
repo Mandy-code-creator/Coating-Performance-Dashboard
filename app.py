@@ -9,7 +9,7 @@ import math
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (分組捲動 & -90° 標籤優化版)")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (Y 軸刻度最佳化版)")
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -114,6 +114,9 @@ if uploaded_file is not None:
                         labels = ['🔴 < 85%', '🟡 85% - 95%', '🔵 95% - 100%', '🟢 ≥ 100%']
                         plot_df['績效等級'] = np.select(conds, labels, default='未知')
                         
+                        # Làm tròn số % để khi hover chuột xem cho gọn
+                        plot_df['合計績效%'] = plot_df['合計績效%'].round(2)
+                        
                         fig = px.scatter(
                             plot_df, x='塗料編號', y='合計績效%', color='績效等級',
                             color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
@@ -123,11 +126,17 @@ if uploaded_file is not None:
                         )
                         fig.add_hline(y=100, line_dash="dash", line_color="black")
                         
-                        # 💡 Cập nhật: Độ đậm nét cao & Xoay dọc nhãn -90 độ
                         fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
                         
+                        # 💡 NÂNG CẤP TRỤC Y TẠI ĐÂY
                         fig.update_layout(
                             xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch),
+                            yaxis=dict(
+                                title="合計績效 (%)",
+                                dtick=10,             # Chia khoảng cách mỗi vạch là 10% (80, 90, 100, 110...)
+                                autorange=True,       # Tự động co giãn theo điểm cao nhất/thấp nhất
+                                gridcolor='#e5e5e5'   # Đổi màu vạch kẻ ngang cho dễ dóng dòng
+                            ),
                             height=650,
                             title=f"第 {i+1} 組塗料績效 ({start_idx+1} - {end_idx})"
                         )
