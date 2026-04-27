@@ -92,22 +92,7 @@ if uploaded_file is not None:
         filtered_df = df_s2[df_s2['用途'].isin(sel_usage)]
 
         # ==========================================
-        # [ 3. DECISION MAKING KPIs ]
-        # ==========================================
-        st.markdown("### 🎯 決策指標 (Decision Making KPIs)")
-        if not filtered_df.empty:
-            # 💡 Đã loại bỏ 2 KPI dư thừa, chuyển thành 2 cột gọn gàng
-            k1, k2 = st.columns(2)
-            avg_perf = filtered_df['合計績效%'].mean()
-            total_delta = filtered_df['Δ耗用 (Deviation)'].sum()
-            
-            k1.metric("平均總績效 (理論值基準)", f"{avg_perf:.2f}%")
-            k2.metric("總差異耗用 (實際 - 理論)", f"{total_delta:,.0f}", delta_color="inverse")
-
-        st.divider()
-
-        # ==========================================
-        # [ 4. VISUALIZATION - TỔ CHỨC LẠI LAYOUT ]
+        # [ 3. VISUALIZATION - TỔ CHỨC LẠI LAYOUT ]
         # ==========================================
         st.markdown("### 📈 視覺化分析與根因探討")
         
@@ -125,38 +110,48 @@ if uploaded_file is not None:
             "📉 [明細] 差異分析 (Deviation)"
         ])
 
-        # --- 1. MACRO VIEW: PIE CHART ---
+        # --- 1. MACRO VIEW: PIE CHART & KPIs ---
         with tab_overview:
-            st.subheader("1. 整體績效分佈佔比 (Macro Overview)")
-            st.info("💡 **高階視角：** 快速檢視當前產線的健康度。若紅色區塊過大，代表整體生產出現系統性耗損。")
+            st.subheader("1. 產線整體績效總覽 (Macro Overview)")
+            st.info("💡 **高階視角：** 快速檢視當前產線的健康度與關鍵指標。若紅色區塊過大，代表整體生產出現系統性耗損。")
             
-            st.markdown(f"#### 📌 分析區間內塗料總數：共 **<span style='color:#2c3e50;'>{total_paints}</span>** 支", unsafe_allow_html=True)
-            
-            pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
-            if not pie_df.empty:
-                pie_counts = pie_df['績效等級'].value_counts().reset_index()
-                pie_counts.columns = ['績效等級', '塗料數量']
+            if not filtered_df.empty:
+                # 💡 GỘP KPI VÀO ĐÂY: Hiển thị 3 chỉ số quan trọng nhất
+                avg_perf = filtered_df['合計績效%'].mean()
+                total_delta = filtered_df['Δ耗用 (Deviation)'].sum()
                 
-                fig_pie = px.pie(
-                    pie_counts, values='塗料數量', names='績效等級',
-                    color='績效等級',
-                    color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                    hole=0.4
-                )
+                k1, k2, k3 = st.columns(3)
+                k1.metric("平均總績效 (理論值基準)", f"{avg_perf:.2f}%")
+                k2.metric("總差異耗用 (實際 - 理論)", f"{total_delta:,.0f}", delta_color="inverse")
+                k3.metric("分析區間內塗料總數", f"{total_paints} 支")
                 
-                fig_pie.update_traces(
-                    textposition='inside', textinfo='percent+label+value',
-                    marker=dict(line=dict(color='white', width=2)), textfont_size=14
-                )
+                st.divider() # Đường gạch ngang phân cách KPI và Biểu đồ
                 
-                fig_pie.update_layout(
-                    plot_bgcolor='white', font=dict(color='black', size=14),
-                    height=550, title="<b>塗料績效等級總數與比例</b>",
-                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
-                )
-                st.plotly_chart(fig_pie, use_container_width=True)
+                pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
+                if not pie_df.empty:
+                    pie_counts = pie_df['績效等級'].value_counts().reset_index()
+                    pie_counts.columns = ['績效等級', '塗料數量']
+                    
+                    fig_pie = px.pie(
+                        pie_counts, values='塗料數量', names='績效等級',
+                        color='績效等級',
+                        color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
+                        hole=0.4
+                    )
+                    
+                    fig_pie.update_traces(
+                        textposition='inside', textinfo='percent+label+value',
+                        marker=dict(line=dict(color='white', width=2)), textfont_size=14
+                    )
+                    
+                    fig_pie.update_layout(
+                        plot_bgcolor='white', font=dict(color='black', size=14),
+                        height=550, title="<b>塗料績效等級總數與比例</b>",
+                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+                    )
+                    st.plotly_chart(fig_pie, use_container_width=True)
             else:
-                st.warning("無有效的績效數據可供繪製。")
+                st.warning("無有效的數據可供分析。")
 
         # --- 2. ACTIONABLE VIEW: PARETO CHART ---
         with tab_pareto:
@@ -258,7 +253,6 @@ if uploaded_file is not None:
                         )
                         
                         fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                        # 💡 Đã loại bỏ label "目標 100%"
                         
                         fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
                         
@@ -307,7 +301,6 @@ if uploaded_file is not None:
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                 
                 fig_dev.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
-                # 💡 Đã loại bỏ label "基準 0"
                 
                 fig_dev.update_layout(
                     plot_bgcolor='white', font=dict(color='black'), margin=dict(r=20),
