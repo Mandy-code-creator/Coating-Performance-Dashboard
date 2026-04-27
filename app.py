@@ -95,7 +95,7 @@ if uploaded_file is not None:
         st.divider()
 
         # ==========================================
-        # [ 5. VISUALIZATION LAYER - TASK 1 ]
+        # [ 5. VISUALIZATION LAYER ]
         # ==========================================
         st.markdown("### 📈 核心視覺化分析")
         
@@ -145,7 +145,17 @@ if uploaded_file is not None:
                     category_orders={"績效等級": labels}
                 )
                 fig_scatter.add_hline(y=100, line_dash="dash", line_color="black")
-                fig_scatter.update_layout(xaxis={'categoryorder':'array', 'categoryarray':sort_order}, height=600)
+                
+                # 💡 強制顯示所有標籤 (dtick=1) 並傾斜角度避免重疊
+                fig_scatter.update_layout(
+                    xaxis=dict(
+                        categoryorder='array', 
+                        categoryarray=sort_order,
+                        dtick=1,            # 確保每一個編號都顯示
+                        tickangle=-45       # 文字傾斜 45 度
+                    ),
+                    height=700              # 增加高度以容納標籤文字
+                )
                 st.plotly_chart(fig_scatter, use_container_width=True)
 
         with tab2:
@@ -154,7 +164,17 @@ if uploaded_file is not None:
             fig_bar = go.Figure()
             fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論耗用', marker_color='#34495e'))
             fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際耗用', marker_color='#3498db'))
-            fig_bar.update_layout(barmode='group', xaxis={'categoryorder':'array', 'categoryarray':sort_order})
+            
+            fig_bar.update_layout(
+                barmode='group', 
+                xaxis=dict(
+                    categoryorder='array', 
+                    categoryarray=sort_order,
+                    dtick=1,            # 確保每一個編號都顯示
+                    tickangle=-45       # 文字傾斜 45 度
+                ),
+                height=650
+            )
             st.plotly_chart(fig_bar, use_container_width=True)
 
         with tab3:
@@ -164,18 +184,29 @@ if uploaded_file is not None:
             fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color',
                              color_discrete_map={'超耗 (Red)': '#d73027', '節省 (Green)': '#1a9850'})
             fig_dev.add_hline(y=0, line_color="black")
-            fig_dev.update_layout(xaxis={'categoryorder':'array', 'categoryarray':sort_order})
+            
+            fig_dev.update_layout(
+                xaxis=dict(
+                    categoryorder='array', 
+                    categoryarray=sort_order,
+                    dtick=1,            # 確保每一個編號都顯示
+                    tickangle=-45       # 文字傾斜 45 度
+                ),
+                height=650
+            )
             st.plotly_chart(fig_dev, use_container_width=True)
 
         with tab4:
             st.subheader("4. 趨勢與廠商分析")
             c1, c2 = st.columns(2)
             with c1:
-                df_trend = filtered_df.groupby('年月')['合計績效%'].mean().reset_index().sort_values('年月')
-                st.plotly_chart(px.line(df_trend, x='年月', y='合計績效%', markers=True, title="月度績效趨勢"), use_container_width=True)
+                if '年月' in filtered_df.columns:
+                    df_trend = filtered_df.groupby('年月')['合計績效%'].mean().reset_index().sort_values('年月')
+                    st.plotly_chart(px.line(df_trend, x='年月', y='合計績效%', markers=True, title="月度績效趨勢"), use_container_width=True)
             with c2:
-                df_sup = filtered_df.groupby('油漆廠商')['合計績效%'].mean().reset_index()
-                st.plotly_chart(px.bar(df_sup, x='油漆廠商', y='合計績效%', color='合計績效%', title="供應商平均績效"), use_container_width=True)
+                if '油漆廠商' in filtered_df.columns:
+                    df_sup = filtered_df.groupby('油漆廠商')['合計績效%'].mean().reset_index()
+                    st.plotly_chart(px.bar(df_sup, x='油漆廠商', y='合計績效%', color='合計績效%', title="供應商平均績效"), use_container_width=True)
 
         with st.expander("🔍 數據明細檢視"):
             st.dataframe(filtered_df)
