@@ -9,7 +9,7 @@ import math
 st.set_page_config(page_title="塗料生產績效看板", layout="wide")
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (高對比度專業報表版)")
+st.markdown("依據 MES/Excel 數據進行系統化分析 (基準線強化對比版)")
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -122,8 +122,17 @@ if uploaded_file is not None:
                             category_orders={"績效等級": labels},
                             hover_data=['線別', '用途', '合計理論耗用', '合計實際耗用']
                         )
-                        # Đường 100% đen đậm nét đứt
-                        fig.add_hline(y=100, line_dash="dash", line_color="black", line_width=2)
+                        
+                        # --- 💡 NÂNG CẤP ĐƯỜNG 100% TẠI ĐÂY ---
+                        fig.add_hline(
+                            y=100, 
+                            line_dash="dash", 
+                            line_color="red",      # Đổi thành màu đỏ
+                            line_width=2.5,        # Làm dày đường nét
+                            annotation_text="<b>🎯 目標 100%</b>", # Thêm nhãn chữ nổi bật
+                            annotation_position="top left",       # Nằm ở góc trên bên trái sát trục Y
+                            annotation_font=dict(color="red", size=14)
+                        )
                         
                         fig.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
                         
@@ -132,22 +141,21 @@ if uploaded_file is not None:
                         y_min_pad = math.floor(min_perf / 10) * 10 - 5
                         y_max_pad = math.ceil(max_perf / 10) * 10 + 10
                         
-                        # --- 💡 ÁP DỤNG KHUNG BAO VÀ FONT ĐẬM TẠI ĐÂY ---
                         fig.update_layout(
-                            plot_bgcolor='white', # Nền trắng tinh để nổi bật viền
-                            font=dict(color='black', size=13), # Chữ toàn cục màu đen đậm
+                            plot_bgcolor='white', 
+                            font=dict(color='black', size=13),
                             xaxis=dict(
                                 dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch,
-                                showline=True, linewidth=1.5, linecolor='black', mirror=True, # Khung viền ngang
+                                showline=True, linewidth=1.5, linecolor='black', mirror=True, 
                                 tickfont=dict(color='black', size=11)
                             ),
                             yaxis=dict(
-                                title="<b>合計績效 (%)</b>", # In đậm tiêu đề trục
+                                title="<b>合計績效 (%)</b>", 
                                 dtick=10,             
                                 range=[y_min_pad, y_max_pad], 
-                                gridcolor='#999999', gridwidth=1, # Đường kẻ ngang màu xám đậm
+                                gridcolor='#999999', gridwidth=1, 
                                 zeroline=False,
-                                showline=True, linewidth=1.5, linecolor='black', mirror=True, # Khung viền dọc
+                                showline=True, linewidth=1.5, linecolor='black', mirror=True, 
                                 tickfont=dict(color='black', size=12)
                             ),
                             height=650,
@@ -167,7 +175,6 @@ if uploaded_file is not None:
                 fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論耗用', marker_color='#34495e'))
                 fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際耗用', marker_color='#3498db'))
                 
-                # --- 💡 ÁP DỤNG KHUNG BAO VÀ FONT ĐẬM TẠI ĐÂY ---
                 fig_bar.update_layout(
                     plot_bgcolor='white', font=dict(color='black'),
                     barmode='group', 
@@ -195,9 +202,13 @@ if uploaded_file is not None:
                 df_dev = batch_df.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                 df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
-                fig_dev.add_hline(y=0, line_color="black", line_width=2)
                 
-                # --- 💡 ÁP DỤNG KHUNG BAO VÀ FONT ĐẬM TẠI ĐÂY ---
+                # --- 💡 NÂNG CẤP ĐƯỜNG 0 TẠI ĐÂY LUN ---
+                fig_dev.add_hline(
+                    y=0, line_dash="solid", line_color="black", line_width=2.5,
+                    annotation_text="<b>基準 0</b>", annotation_position="top left", annotation_font=dict(color="black", size=14)
+                )
+                
                 fig_dev.update_layout(
                     plot_bgcolor='white', font=dict(color='black'),
                     xaxis=dict(
