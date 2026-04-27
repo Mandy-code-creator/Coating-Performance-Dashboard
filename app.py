@@ -182,17 +182,16 @@ if uploaded_file is not None:
             else:
                 st.success("🎉 目前無超耗記錄，所有塗料皆達標或節省！")
 
-        # --- 3. ROOT CAUSE VIEW: BOX PLOT (ĐÃ CHỈNH SỬA MÀU SẮC ĐẬM ĐÀ) ---
+        # --- 3. ROOT CAUSE VIEW: BOX PLOT ---
         with tab_rootcause:
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("3A. 供應商品質穩定度 (Supplier QC)")
                 st.info("💡 **追查材料端：** 盒子越長，代表該廠商的塗料在產線上表現越不穩定。")
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
-                    # Dùng px.colors.qualitative.Set1 cho màu đậm, dễ nhìn trên nền trắng
-                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=px.colors.qualitative.Set1)
+                    # 💡 Chuyển sang dải màu D3 chuyên nghiệp, đậm nhưng không bị "gắt"
+                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=px.colors.qualitative.D3)
                     
-                    # Làm nét và đậm đường đứt nét 100%
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                     
                     fig_box1.update_layout(
@@ -214,10 +213,9 @@ if uploaded_file is not None:
                     shift_df['班別'] = shift_df['班別'].str.replace('班績效%', '班')
                     
                     if not shift_df.empty:
-                        # Dùng px.colors.qualitative.Set1 cho màu đậm, dễ nhìn trên nền trắng
-                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=px.colors.qualitative.Set1)
+                        # 💡 Chuyển sang dải màu D3 chuyên nghiệp, đậm nhưng không bị "gắt"
+                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=px.colors.qualitative.D3)
                         
-                        # Làm nét và đậm đường đứt nét 100%
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                         
                         fig_box2.update_layout(
