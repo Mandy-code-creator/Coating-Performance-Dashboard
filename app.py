@@ -210,27 +210,72 @@ if uploaded_file is not None:
             st.plotly_chart(fig_dev, use_container_width=True)
 
         # --- 新增的 Scatter Plot Tab ---
+# --- 新增的 Scatter Plot Tab ---
         with tab4:
             st.subheader("4. 績效散佈趨勢圖 (Scatter Trend & Outliers)")
-            st.markdown("觀察塗料績效的集中趨勢。**圓圈大小代表理論耗用量** (用量越大的塗料若績效低於100%，需優先關注)。")
+            
+            # Ghi chú quy tắc màu sắc (Legend / Notes) hiển thị trực tiếp trên Dashboard
+            st.markdown("""
+            **💡 績效燈號規則 (Quy tắc cảnh báo):**
+            * 🔴 **紅色 (嚴重耗損):** < 85% *(Hao hụt nghiêm trọng)*
+            * 🟡 **黃色 (注意耗損):** 85% - 95% *(Cần chú ý)*
+            * 🔵 **藍色 (接近達標):** 95% - 100% *(Gần đạt chuẩn)*
+            * 🟢 **綠色 (達標/節省):** ≥ 100% *(Đạt chuẩn / Tiết kiệm)*
+            
+            *(👉 圓圈大小代表「理論耗用量」，大紅圈為首要改善目標 / Vòng tròn càng to, lượng hao hụt theo lý thuyết càng lớn. Vòng tròn TO MÀU ĐỎ là mục tiêu cần cải thiện gấp!)*
+            """)
             
             # 確保有資料繪圖
             if not filtered_df.empty and '合計績效%' in filtered_df.columns:
+                plot_df = filtered_df.copy()
+                
+                # 1. Thiết lập quy tắc phân loại nhóm hiệu suất
+                conditions = [
+                    plot_df['合計績效%'] < 85,
+                    (plot_df['合計績效%'] >= 85) & (plot_df['合計績效%'] < 95),
+                    (plot_df['合計績效%'] >= 95) & (plot_df['合計績效%'] < 100),
+                    plot_df['合計績效%'] >= 100
+                ]
+                choices = ['< 85% (嚴重耗損)', '85% - 95% (注意耗損)', '95% - 100% (接近達標)', '≥ 100% (達標/節省)']
+                plot_df['績效級別'] = np.select(conditions, choices, default='未知')
+                
+                # 2. Quy định màu sắc chuẩn xác cho từng nhóm
+                color_map = {
+                    '< 85% (嚴重耗損)': '#d73027',    # Đỏ
+                    '85% - 95% (注意耗損)': '#fee08b',   # Vàng
+                    '95% - 100% (接近達標)': '#4575b4',  # Xanh dương
+                    '≥ 100% (達標/節省)': '#1a9850'      # Xanh lá
+                }
+                
+                # 3. Vẽ biểu đồ Scatter
                 fig_scatter = px.scatter(
-                    filtered_df,
+                    plot_df,
                     x='塗料編號',
                     y='合計績效%',
-                    color='用途' if '用途' in filtered_df.columns else None,
-                    size='合計理論耗用' if '合計理論耗用' in filtered_df.columns else None,
-                    hover_data=['線別', '年月', '合計理論耗用', '合計實際耗用'],
-                    size_max=25 # 控制最大泡泡的尺寸
+                    color='績效級別',
+                    color_discrete_map=color_map,
+                    size='合計理論耗用' if '合計理論耗用' in plot_df.columns else None,
+                    hover_data=['用途', '線別', '年月', '合計理論耗用', '合計實際耗用'],
+                    size_max=35, # Tăng kích thước chấm to lên một chút để dễ nhìn hơn
+                    category_orders={"績效級別": ['< 85% (嚴重耗損)', '85% - 95% (注意耗損)', '95% - 100% (接近達標)', '≥ 100% (達標/節省)']}
                 )
-                fig_scatter.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="目標 (100%)")
+                
+                # Thêm đường line mốc 100%
+                fig_scatter.add_hline(y=100, line_dash="dash", line_color="black", annotation_text="目標 (100%)")
+                
                 fig_scatter.update_layout(
                     xaxis_title="塗料編號", 
                     yaxis_title="合計績效 (%)",
                     xaxis={'categoryorder':'array', 'categoryarray':sort_order},
-                    height=500
+                    height=550,
+                    legend_title_text="績效級別 (Legend)",
+                    legend=dict(
+                        orientation="h", # Chuyển chú thích màu nằm ngang cho đỡ chiếm diện tích
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
+                    )
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
 
