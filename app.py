@@ -296,48 +296,48 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"系統發生錯誤，請確認檔案格式是否正確。錯誤詳情：{e}")
-else:
-    st.info("👈 請於左側面板上傳您的資料集 (Data Source) 以驅動分析引擎。")
-# --- 🌟 TÍNH NĂNG MỚI: TAB 6 PIE CHART ---
-        with viz_tab6:
-            st.subheader("7. 整體績效分佈佔比 (Pie Chart)")
-            st.info("💡 **宏觀視角：** 快速檢視當前篩選條件下，各績效等級的塗料數量與比例。若紅色區塊過大，代表產線整體耗損嚴重。")
-            
-            pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
-            if not pie_df.empty:
-                # Đếm số lượng mã sơn theo từng nhóm màu
-                pie_counts = pie_df['績效等級'].value_counts().reset_index()
-                pie_counts.columns = ['績效等級', '塗料數量']
-                
-                # Vẽ biểu đồ Donut
-                fig_pie = px.pie(
-                    pie_counts, values='塗料數量', names='績效等級',
-                    color='績效等級',
-                    color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                    hole=0.4 # Biến thành Donut chart (có lỗ ở giữa) cho sang trọng
-                )
-                
-                fig_pie.update_traces(
-                    textposition='inside', 
-                    textinfo='percent+label+value', # Hiển thị cả % + Tên nhãn + Số lượng
-                    marker=dict(line=dict(color='white', width=2)), # Viền trắng giữa các lát cắt
-                    textfont_size=14
-                )
-                
-                fig_pie.update_layout(
-                    plot_bgcolor='white', font=dict(color='black', size=14),
-                    height=550, title="<b>塗料績效等級分佈 (總數與比例)</b>",
-                    showlegend=True,
-                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
-                )
-                st.plotly_chart(fig_pie, use_container_width=True)
-            else:
-                st.warning("無有效的績效數據可供繪製。")
-
-        with st.expander("🔍 數據明細"):
-            st.dataframe(filtered_df)
-
-    except Exception as e:
-        st.error(f"系統錯誤：{e}")
-else:
-    st.info("👈 請上傳 MES 數據檔案。")
+        else:
+            st.info("👈 請於左側面板上傳您的資料集 (Data Source) 以驅動分析引擎。")
+        # --- 🌟 TÍNH NĂNG MỚI: TAB 6 PIE CHART ---
+                with viz_tab6:
+                    st.subheader("7. 整體績效分佈佔比 (Pie Chart)")
+                    st.info("💡 **宏觀視角：** 快速檢視當前篩選條件下，各績效等級的塗料數量與比例。若紅色區塊過大，代表產線整體耗損嚴重。")
+                    
+                    pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
+                    if not pie_df.empty:
+                        # Đếm số lượng mã sơn theo từng nhóm màu
+                        pie_counts = pie_df['績效等級'].value_counts().reset_index()
+                        pie_counts.columns = ['績效等級', '塗料數量']
+                        
+                        # Vẽ biểu đồ Donut
+                        fig_pie = px.pie(
+                            pie_counts, values='塗料數量', names='績效等級',
+                            color='績效等級',
+                            color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
+                            hole=0.4 # Biến thành Donut chart (có lỗ ở giữa) cho sang trọng
+                        )
+                        
+                        fig_pie.update_traces(
+                            textposition='inside', 
+                            textinfo='percent+label+value', # Hiển thị cả % + Tên nhãn + Số lượng
+                            marker=dict(line=dict(color='white', width=2)), # Viền trắng giữa các lát cắt
+                            textfont_size=14
+                        )
+                        
+                        fig_pie.update_layout(
+                            plot_bgcolor='white', font=dict(color='black', size=14),
+                            height=550, title="<b>塗料績效等級分佈 (總數與比例)</b>",
+                            showlegend=True,
+                            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+                        )
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                    else:
+                        st.warning("無有效的績效數據可供繪製。")
+        
+                with st.expander("🔍 數據明細"):
+                    st.dataframe(filtered_df)
+        
+            except Exception as e:
+                st.error(f"系統錯誤：{e}")
+        else:
+            st.info("👈 請上傳 MES 數據檔案。")
