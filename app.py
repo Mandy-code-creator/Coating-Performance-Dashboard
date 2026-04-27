@@ -121,7 +121,6 @@ if uploaded_file is not None:
         items_per_chart = 40
         num_charts = math.ceil(total_paints / items_per_chart)
 
-        # 💡 SẮP XẾP LẠI TÊN VÀ THỨ TỰ CÁC TAB TỪ VĨ MÔ ĐẾN VI MÔ
         tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev = st.tabs([
             "🍩 [總覽] 績效分佈 (Overview)", 
             "🚨 [決策] 優先改善清單 (Pareto)", 
@@ -135,6 +134,9 @@ if uploaded_file is not None:
         with tab_overview:
             st.subheader("1. 整體績效分佈佔比 (Macro Overview)")
             st.info("💡 **高階視角：** 快速檢視當前產線的健康度。若紅色區塊過大，代表整體生產出現系統性耗損。")
+            
+            # 💡 Đã bổ sung hiển thị tổng số mã sơn
+            st.markdown(f"#### 📌 分析區間內塗料總數：共 **<span style='color:#2c3e50;'>{total_paints}</span>** 支", unsafe_allow_html=True)
             
             pie_df = filtered_df.dropna(subset=['合計績效%', '績效等級'])
             if not pie_df.empty:
