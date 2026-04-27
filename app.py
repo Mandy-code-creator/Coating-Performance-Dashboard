@@ -18,35 +18,55 @@ uploaded_file = st.sidebar.file_uploader("請上傳資料檔 (支援 CSV 或 Exc
 
 if uploaded_file is not None:
     try:
-        # 讀取資料
+        # --- 💡 NÂNG CẤP BỘ ĐỌC FILE TẠI ĐÂY ---
         if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file, engine='python', sep=None)
+            # Ép đọc chuẩn utf-8, tự động bỏ qua các dòng bị lỗi cấu trúc nặng thay vì sụp hệ thống
+            df = pd.read_csv(uploaded_file, encoding='utf-8-sig', on_bad_lines='skip', dtype=str)
         else:
-            df = pd.read_excel(uploaded_file)
+            df = pd.read_excel(uploaded_file, dtype=str)
+
+        # 1. Dọn dẹp tiêu đề cột (Xóa khoảng trắng bị dư lúc export)
+        df.columns = df.columns.str.strip()
+
+        # 🛠️ DEBUG TOOL: Hộp thoại xem dữ liệu thô
+        with st.expander("🛠️ 檢查原始數據 (Kiểm tra dữ liệu gốc) - Bấm vào đây để xem file có đủ Line không"):
+            st.markdown("👉 *Nếu bảng dưới đây chỉ có Line 41CP, nghĩa là file CSV từ hệ thống của bạn xuất ra đang bị thiếu. Bạn cần xuất lại file.*")
+            st.dataframe(df.head(100))
 
         # ==========================================
         # [ 2. DATA CLEANING & MODELING ]
         # ==========================================
-        df = df.dropna(subset=['塗料編號']).copy()
-        
-        if '年月' in df.columns:
-            df['年月'] = df['年月'].astype(str).str.replace(r'\.0$', '', regex=True)
+        # 2. Chuẩn hóa cột Line (線別) và Mã sơn (塗料編號) - Xóa mọi dấu cách thừa
+        if '線別' in df.columns:
+            df['線別'] = df['線別'].astype(str).str.strip().str.upper()
+            df = df[~df['線別'].isin(['NAN', 'NONE', ''])] # Loại bỏ dòng trống
 
-        cat_cols = ['線別', '油漆廠商', '顏色', '樹脂', '用途']
+        if '塗料編號' in df.columns:
+            df['塗料編號'] = df['塗料編號'].astype(str).str.strip()
+            df = df[~df['塗料編號'].isin(['NAN', 'NONE', ''])]
+            
+        # Dọn dẹp cột thời gian
+        if '年月' in df.columns:
+            df['年月'] = df['年月'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+
+        # Dọn dẹp các cột phân loại
+        cat_cols = ['油漆廠商', '顏色', '樹脂', '用途']
         for col in cat_cols:
             if col in df.columns:
                 df[col] = df[col].fillna('未定義').astype(str).str.strip()
 
-        # 數值轉換
+        # 3. Chuẩn hóa các cột Số lượng (Ép kiểu an toàn, xóa dấu phẩy ngàn nếu có)
         numeric_cols = ['合計理論耗用', '合計實際耗用', '合計績效%', '設定績效%']
         for shift in ['A', 'B', 'C', 'D']:
             numeric_cols.extend([f'{shift}班理論耗用', f'{shift}班實際耗用', f'{shift}班績效%'])
             
         for col in numeric_cols:
             if col in df.columns:
+                # Xóa dấu phẩy của số hàng ngàn (vd: 2,042 -> 2042) để ép kiểu không bị lỗi
+                df[col] = df[col].astype(str).str.replace(',', '', regex=False)
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        # 建立指標 (使用理論值概念)
+        # 4. Tính toán Chỉ số (Sử dụng Khái niệm Lý thuyết / 理論值)
         if '合計績效%' not in df.columns and '合計理論耗用' in df.columns and '合計實際耗用' in df.columns:
             df['合計績效%'] = np.where(df['合計實際耗用'] != 0, (df['合計理論耗用'] / df['合計實際耗用']) * 100, np.nan)
             
@@ -71,7 +91,7 @@ if uploaded_file is not None:
         sel_line = st.sidebar.multiselect("2. 選擇線別", options=lines, default=lines)
         df_s2 = df_s1[df_s1['線別'].isin(sel_line)]
         
-        # Step 3: 用途 (依照前兩步篩選出的結果進行過濾)
+        # Step 3: 用途
         usages = sorted(df_s2['用途'].dropna().unique()) if '用途' in df_s2.columns else []
         sel_usage = st.sidebar.multiselect("3. 選擇用途", options=usages, default=usages)
         filtered_df = df_s2[df_s2['用途'].isin(sel_usage)]
@@ -99,7 +119,6 @@ if uploaded_file is not None:
         # ==========================================
         st.markdown("### 📈 核心視覺化分析")
         
-        # 排序清單
         sort_order = filtered_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
         
         tab1, tab2, tab3, tab4 = st.tabs([
@@ -119,7 +138,6 @@ if uploaded_file is not None:
             
             if not filtered_df.empty:
                 plot_df = filtered_df.copy()
-                # 分類績效等級
                 conds = [
                     plot_df['合計績效%'] < 85,
                     (plot_df['合計績效%'] >= 85) & (plot_df['合計績效%'] < 95),
@@ -146,15 +164,14 @@ if uploaded_file is not None:
                 )
                 fig_scatter.add_hline(y=100, line_dash="dash", line_color="black")
                 
-                # 💡 強制顯示所有標籤 (dtick=1) 並傾斜角度避免重疊
                 fig_scatter.update_layout(
                     xaxis=dict(
                         categoryorder='array', 
                         categoryarray=sort_order,
-                        dtick=1,            # 確保每一個編號都顯示
-                        tickangle=-45       # 文字傾斜 45 度
+                        dtick=1,            
+                        tickangle=-45       
                     ),
-                    height=700              # 增加高度以容納標籤文字
+                    height=700              
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
 
@@ -170,8 +187,8 @@ if uploaded_file is not None:
                 xaxis=dict(
                     categoryorder='array', 
                     categoryarray=sort_order,
-                    dtick=1,            # 確保每一個編號都顯示
-                    tickangle=-45       # 文字傾斜 45 度
+                    dtick=1,            
+                    tickangle=-45       
                 ),
                 height=650
             )
@@ -189,8 +206,8 @@ if uploaded_file is not None:
                 xaxis=dict(
                     categoryorder='array', 
                     categoryarray=sort_order,
-                    dtick=1,            # 確保每一個編號都顯示
-                    tickangle=-45       # 文字傾斜 45 度
+                    dtick=1,            
+                    tickangle=-45       
                 ),
                 height=650
             )
