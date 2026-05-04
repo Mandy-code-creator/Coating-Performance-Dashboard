@@ -4,6 +4,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import math
+import io
+from docx import Document
+from docx.shared import Inches
 
 # ==========================================
 # [ 0. PAGE CONFIG & CSS ]
@@ -92,14 +95,14 @@ if uploaded_file is not None:
         filtered_df = df_s2[df_s2['用途'].isin(sel_usage)]
 
         # ==========================================
-        # [ 3. VISUALIZATION - TỔ CHỨC LẠI LAYOUT ]
+        # [ 3. VISUALIZATION ]
         # ==========================================
         st.markdown("### 📈 視覺化分析與根因探討")
         
         sort_order = filtered_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
         total_paints = len(sort_order)
         items_per_chart = 40
-        num_charts = math.ceil(total_paints / items_per_chart)
+        num_charts = math.ceil(total_paints / items_per_chart) if items_per_chart else 0
 
         tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev = st.tabs([
             "🍩 [總覽] 績效分佈 (Overview)", 
@@ -292,7 +295,6 @@ if uploaded_file is not None:
                     min_perf, max_perf = plot_df['合計績效%'].min(), plot_df['合計績效%'].max()
                     y_min_pad, y_max_pad = math.floor(min_perf / 10) * 10 - 5, math.ceil(max_perf / 10) * 10 + 10
                     
-                    # 💡 TỰ ĐỘNG ĐIỀN CHÍNH XÁC SỐ TỔNG MÃ SƠN VÀO TRỤC X
                     dynamic_x_title = f"<b>塗料排序序號 (1 到 {total_paints})</b>"
                     
                     fig.update_layout(
@@ -350,17 +352,9 @@ if uploaded_file is not None:
         with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
             st.dataframe(filtered_df)
 
-    except Exception as e:
-        st.error(f"系統錯誤：{e}")
-else:
-    st.info("👈 請上傳 MES 數據檔案。")
-# ==========================================
+        # ==========================================
         # [ 4. EXPORT REPORT TO WORD ]
         # ==========================================
-        import io
-        from docx import Document
-        from docx.shared import Inches
-
         st.sidebar.markdown("---")
         st.sidebar.header("📥 [4] Xuất Báo Cáo Word")
         st.sidebar.info("Chỉ xuất dữ liệu '正面漆' theo từng Line.")
@@ -368,21 +362,17 @@ else:
         if st.sidebar.button("📄 Tạo báo cáo Word (正面漆)"):
             with st.spinner("Đang xử lý dữ liệu và tạo biểu đồ, vui lòng đợi..."):
                 try:
-                    # Khởi tạo Document
                     doc = Document()
                     doc.add_heading('塗料生產績效看板 - 正面漆 報告 (Báo Cáo Sơn Mặt Trước)', 0)
 
-                    # Lọc toàn bộ dữ liệu gốc chỉ lấy "正面漆"
                     df_word = df[df['用途'] == '正面漆'].copy()
                     
                     if df_word.empty:
                         st.sidebar.error("❌ Không tìm thấy dữ liệu nào có '用途' là '正面漆'.")
                     else:
-                        # Lấy danh sách các Line
                         lines = sorted(df_word['線別'].unique())
                         
                         for line in lines:
-                            # Phân trang cho từng Line (Trừ trang đầu tiên)
                             if line != lines[0]:
                                 doc.add_page_break()
                                 
@@ -392,13 +382,10 @@ else:
                             if df_line.empty:
                                 continue
                             
-                            # Xác định thứ tự sơn để vẽ chart
                             sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                             total_paints_line = len(sort_order_line)
 
-                            # --------------------------------------------------
-                            # Biểu đồ 1: 4. 塗料績效燈號全景總覽 (Scatter)
-                            # --------------------------------------------------
+                            # Bieu do 1: Scatter
                             doc.add_heading('1. 塗料績效燈號全景總覽 (Tổng quan hiệu suất)', level=2)
                             plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                             plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
@@ -431,9 +418,7 @@ else:
                             else:
                                 doc.add_paragraph("Không đủ dữ liệu hiệu suất để hiển thị biểu đồ này.")
 
-                            # --------------------------------------------------
-                            # Biểu đồ 2: 2. 異常超耗柏拉圖 (Pareto Priority)
-                            # --------------------------------------------------
+                            # Bieu do 2: Pareto
                             doc.add_heading('2. 異常超耗柏拉圖 (Biểu đồ Pareto tiêu hao bất thường)', level=2)
                             pareto_df = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                             
@@ -458,12 +443,10 @@ else:
                             else:
                                 doc.add_paragraph("🎉 Tuyệt vời! Line này hiện không có mã sơn nào bị vượt định mức (Over-used).")
 
-                            # --------------------------------------------------
-                            # Biểu đồ 3: 6. 單一塗料：耗用差異絕對值 (Deviation)
-                            # --------------------------------------------------
+                            # Bieu do 3: Deviation
                             doc.add_heading('3. 單一塗料：耗用差異絕對值 (Chi tiết chênh lệch hao hụt)', level=2)
                             items_per_chart_word = 40
-                            num_charts_word = math.ceil(total_paints_line / items_per_chart_word)
+                            num_charts_word = math.ceil(total_paints_line / items_per_chart_word) if items_per_chart_word else 0
                             
                             if total_paints_line > 0:
                                 for i in range(num_charts_word):
@@ -488,7 +471,6 @@ else:
                             else:
                                 doc.add_paragraph("Không có dữ liệu sơn cho Line này.")
 
-                        # Lưu file Word vào bộ nhớ (BytesIO)
                         doc_io = io.BytesIO()
                         doc.save(doc_io)
                         doc_io.seek(0)
@@ -502,4 +484,9 @@ else:
                         )
                         
                 except Exception as e:
-                    st.sidebar.error(f"❌ Lỗi khi xuất file: {e}\n(Hãy chắc chắn bạn đã cài pip install python-docx kaleido)")
+                    st.sidebar.error(f"❌ Lỗi khi xuất file: {e}")
+
+    except Exception as e:
+        st.error(f"系統錯誤：{e}")
+else:
+    st.info("👈 請上傳 MES 數據檔案。")
