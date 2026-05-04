@@ -75,7 +75,7 @@ if uploaded_file is not None:
         df['Sort_Group'] = df['塗料編號'].apply(lambda x: 'GE00_01_Group' if any(g in str(x) for g in ['GE00', 'GE01']) else str(x))
 
         # ==========================================
-        # [ COLOR MAP (NO VIETNAMESE) ]
+        # [ COLOR MAP ]
         # ==========================================
         conds_global = [
             df['合計績效%'] < 80, 
@@ -133,7 +133,6 @@ if uploaded_file is not None:
             "📉 [明細] 差異分析"
         ])
 
-        # Default chart layout settings (Bold fonts, borders)
         common_layout = dict(
             plot_bgcolor='white',
             font=dict(color='black', family='Arial', size=13, weight='bold'),
@@ -207,10 +206,9 @@ if uploaded_file is not None:
             with col1:
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
                     fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
-                    # ADD REFERENCE LINES (90, 100, 110)
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
-                    fig_box1.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
-                    fig_box1.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
+                    fig_box1.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
+                    fig_box1.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                     fig_box1.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
                     
                     fig_box1.update_layout(**common_layout)
@@ -222,10 +220,9 @@ if uploaded_file is not None:
                     shift_df['班別'] = shift_df['班別'].str.replace('班績效%', '班')
                     if not shift_df.empty:
                         fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
-                        # ADD REFERENCE LINES (90, 100, 110)
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
-                        fig_box2.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
-                        fig_box2.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
+                        fig_box2.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
+                        fig_box2.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                         fig_box2.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
                         
                         fig_box2.update_layout(**common_layout)
@@ -235,13 +232,12 @@ if uploaded_file is not None:
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
             
-            # --- GUIDE FOR SCATTER PLOT ---
             st.info("""
             💡 **圖表說明 (How to read this chart):**
             * **X軸 (X-Axis):** 塗料排序序號 (Paint Sequence No.).
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
             * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption). 圓點越大，系統設定上的預期耗用量越高 (Larger bubble = Higher expected consumption).
-            * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線 (Red dashed line)；**90% & 110%** 為橘色點線 (Orange dotted lines)，輔助辨識效能邊界 (Help identify performance boundaries).
+            * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線 (Red dashed line)；**90% & 110%** 為深天藍色點線 (Deep Sky Blue dotted lines)，輔助辨識效能邊界 (Help identify performance boundaries).
             """)
             
             if not filtered_df.empty:
@@ -259,20 +255,19 @@ if uploaded_file is not None:
                         hover_name='塗料編號'
                     )
                     
-                    # ADD REFERENCE LINES (90, 100, 110)
                     fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
-                    fig.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
-                    fig.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
+                    fig.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
+                    fig.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                     
                     fig.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=16, weight="bold"))
-                    fig.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Bound</b>", showarrow=False, xanchor="right", yanchor="top", font=dict(color="orange", size=13, weight="bold"))
-                    fig.add_annotation(x=1, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="orange", size=13, weight="bold"))
+                    fig.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Bound</b>", showarrow=False, xanchor="right", yanchor="top", font=dict(color="deepskyblue", size=13, weight="bold"))
+                    fig.add_annotation(x=1, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="deepskyblue", size=13, weight="bold"))
 
                     fig.update_layout(**common_layout)
                     fig.update_layout(
                         height=700, 
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
-                        xaxis_title="<b>塗料排序序號 (Paint Sequence No.)</b>",
+                        xaxis_title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints} 支 (Total Items)</b>",
                         yaxis_title="<b>合計績效 (%)</b>"
                     )
                     fig.update_traces(marker=dict(line=dict(width=1, color='black')))
@@ -329,27 +324,90 @@ if uploaded_file is not None:
                     st.sidebar.error("❌ 找不到最新月份數據。(No data for the latest month)")
                 else:
                     lines = sorted(df_word['線別'].unique())
-                    html_content = f"<html><head><meta charset='UTF-8'><title>Performance Report</title></head><body>"
-                    html_content += f"<h1 style='text-align:center;'>📊 塗料生產績效報告 - {latest_month}</h1>"
+                    html_content = f"""
+                    <html>
+                    <head>
+                        <meta charset='UTF-8'>
+                        <title>Performance Report</title>
+                        <style>
+                            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }}
+                            .container {{ background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 1200px; margin: auto; }}
+                            h1 {{ color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+                            h2 {{ color: #e67e22; margin-top: 50px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }}
+                            h3 {{ color: #34495e; margin-top: 30px; }}
+                            .styled-table {{ border-collapse: collapse; margin: 25px 0; font-size: 0.9em; font-family: sans-serif; width: 100%; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15); }}
+                            .styled-table thead tr {{ background-color: #009879; color: #ffffff; text-align: center; }}
+                            .styled-table th, .styled-table td {{ padding: 12px 15px; border: 1px solid #ddd; text-align: center; }}
+                            .styled-table tbody tr {{ border-bottom: 1px solid #dddddd; }}
+                            .styled-table tbody tr:nth-of-type(even) {{ background-color: #f3f3f3; }}
+                            .styled-table tbody tr:last-of-type {{ border-bottom: 2px solid #009879; }}
+                        </style>
+                    </head>
+                    <body>
+                    <div class="container">
+                        <h1>📊 塗料生產績效報告 - {latest_month}</h1>
+                    """
                     
                     for line in lines:
                         html_content += f"<h2>🏭 線別 (Line): {line}</h2>"
                         df_line = df_word[df_word['線別'] == line].copy()
+                        
+                        sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
+                        total_paints_line = len(sort_order_line)
+                        
+                        # --- 1. SCATTER PLOT ---
                         fig_line = px.scatter(df_line, x='塗料編號', y='合計績效%', color='績效等級',
                                             color_discrete_map=perf_color_map, 
                                             category_orders={"績效等級": labels_global},
                                             title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>")
-                        
-                        # Add Lines to HTML Export as well
                         fig_line.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
-                        fig_line.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
-                        fig_line.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
+                        fig_line.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
+                        fig_line.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                         fig_line.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
-                        
                         fig_line.update_layout(**common_layout)
+                        fig_line.update_layout(xaxis_title=f"<b>塗料編號 (Paint ID) - 總計: {total_paints_line} 支 (Total Items)</b>", yaxis_title="<b>合計績效 (%)</b>")
                         html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
-                    
-                    html_content += "</body></html>"
+                        
+                        # --- 2. PARETO CHART ---
+                        html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
+                        pareto_df = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+                        if not pareto_df.empty:
+                            pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
+                            pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
+                            top_pareto = pareto_df.head(40)
+                            fig_pareto = go.Figure()
+                            fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
+                            fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
+                            fig_pareto.update_layout(**common_layout)
+                            fig_pareto.update_layout(
+                                xaxis=dict(title="<b>塗料編號 (Paint ID)</b>"),
+                                yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
+                                yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
+                                height=500, title="<b>Top 40 成本流失最大塗料排行</b>",
+                                showlegend=True
+                            )
+                            html_content += fig_pareto.to_html(full_html=False, include_plotlyjs='cdn')
+                        else:
+                            html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
+
+                        # --- 3. TOP 10 TABLE ---
+                        html_content += f"<h3>📋 Top 10 嚴重超耗塗料清單 (Top 10 Over-consumption Table)</h3>"
+                        over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 0].copy()
+                        if not over_used_df_line.empty:
+                            top10_table = over_used_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
+                            show_cols = ['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
+                            top10_table = top10_table[show_cols]
+                            top10_table.columns = ['塗料編號 (Paint ID)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
+                            
+                            top10_table['合計績效 (%)'] = top10_table['合計績效 (%)'].apply(lambda x: f"{x:.2f}%")
+                            top10_table['🔥 超耗量 (Over-used)'] = top10_table['🔥 超耗量 (Over-used)'].apply(lambda x: f"{x:,.0f}")
+                            
+                            html_table = top10_table.to_html(index=False, classes='styled-table', escape=False)
+                            html_content += html_table
+                        else:
+                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
+                        
+                    html_content += "</div></body></html>"
                     st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{latest_month}.html", mime="text/html")
             except Exception as e:
                 st.sidebar.error(f"Error: {e}")
