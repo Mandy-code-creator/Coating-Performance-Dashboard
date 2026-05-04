@@ -4,7 +4,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import math
-import io
 
 # ==========================================
 # [ 0. PAGE CONFIG & CSS ]
@@ -103,7 +102,7 @@ if uploaded_file is not None:
         items_per_chart = 40
         num_charts = math.ceil(total_paints / items_per_chart) if items_per_chart else 0
 
-        tab_overview, tab_pareto, tab_scatter, tab_bar, tab_dev = st.tabs([
+        tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev = st.tabs([
             "🍩 [總覽] 績效分佈", 
             "🚨 [決策] 改善清單", 
             "📦 [根因] 穩定度分析", 
@@ -160,6 +159,25 @@ if uploaded_file is not None:
                     height=650, margin=dict(b=150)
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
+
+        with tab_rootcause:
+            col1, col2 = st.columns(2)
+            NO_RED_PALETTE = ['#1f77b4', '#ff7f0e', '#2ca02c', '#9467bd', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf']
+            with col1:
+                st.subheader("3A. 供應商品質穩定度")
+                if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
+                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
+                    fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
+                    fig_box1.update_layout(xaxis=dict(automargin=True), plot_bgcolor='white', height=550)
+                    st.plotly_chart(fig_box1, use_container_width=True)
+            with col2:
+                st.subheader("3B. 班別操作穩定度")
+                if shift_cols:
+                    shift_df = pd.melt(filtered_df, id_vars=['塗料編號'], value_vars=shift_cols, var_name='班別', value_name='績效%').dropna(subset=['績效%'])
+                    if not shift_df.empty:
+                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
+                        fig_box2.update_layout(xaxis=dict(automargin=True), plot_bgcolor='white', height=550)
+                        st.plotly_chart(fig_box2, use_container_width=True)
 
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
@@ -232,12 +250,10 @@ if uploaded_file is not None:
                             line_data = df_rep[df_rep['線別'] == line].sort_values('塗料編號')
                             html_content += f"<h2>🏭 線別: {line}</h2>"
                             
-                            # Scatter
                             f1 = px.scatter(line_data, x='塗料編號', y='合計績效%', color='績效等級', hover_name='塗料編號',
                                             color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'})
                             f1.update_layout(paper_bgcolor='white', plot_bgcolor='white', xaxis=dict(tickangle=-45, automargin=True, title=""), margin=dict(b=100))
                             
-                            # Deviation
                             f3 = px.bar(line_data.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index(), x='塗料編號', y='Δ耗用 (Deviation)', hover_name='塗料編號')
                             f3.update_layout(paper_bgcolor='white', plot_bgcolor='white', xaxis=dict(tickangle=-45, automargin=True, title=""), margin=dict(b=100))
 
