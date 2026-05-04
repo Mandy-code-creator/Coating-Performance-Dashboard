@@ -156,10 +156,12 @@ if uploaded_file is not None:
         with tab_pareto:
             st.subheader("2. 異常超耗柏拉圖 (Pareto Priority)")
             pareto_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+            
             if not pareto_df.empty:
                 pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
                 pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
                 top_pareto = pareto_df.head(40)
+
                 fig_pareto = go.Figure()
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (單位)', marker_color='#d73027'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
@@ -211,6 +213,7 @@ if uploaded_file is not None:
         # --- 4. MACRO VIEW: FULL SCATTER PLOT ---
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
+            st.info("💡 **圖表說明：** 為避免畫面擁擠，X 軸已替換為數字「序號」。**請將游標懸停在圓圈上，即可查看對應的確切【塗料編號】與詳細資訊。**")
             if not filtered_df.empty and total_paints > 0:
                 plot_df = filtered_df.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                 plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
@@ -222,7 +225,8 @@ if uploaded_file is not None:
                     fig = px.scatter(
                         plot_df, x='塗料序號', y='合計績效%', color='績效等級',
                         color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                        size='合計理論耗用', size_max=35, category_orders={"績效等級": labels_global}, hover_name='塗料編號', 
+                        size='合計理論耗用', size_max=35, category_orders={"績效等級": labels_global}, 
+                        hover_name='塗料編號', 
                         hover_data={'塗料序號': False, '線別': True, '用途': True, '合計理論耗用': True, '合計實際耗用': True}
                     )
                     fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
@@ -247,8 +251,8 @@ if uploaded_file is not None:
                 batch_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)]
                 df_bar = batch_df.groupby('塗料編號')[['合計理論耗用', '合計實際耗用']].sum().reset_index()
                 fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論耗用', marker_color='#34495e'))
-                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際耗用', marker_color='#3498db'))
+                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論耗用', marker_color='#34495e', hovertext=df_bar['塗料編號']))
+                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際耗用', marker_color='#3498db', hovertext=df_bar['塗料編號']))
                 fig_bar.update_layout(
                     plot_bgcolor='white', font=dict(color='black'), barmode='group', 
                     xaxis=dict(dtick=1, tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True, automargin=True, title=""),
@@ -266,7 +270,7 @@ if uploaded_file is not None:
                 batch_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)]
                 df_dev = batch_df.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                 df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
-                fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
+                fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', hover_name='塗料編號', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                 fig_dev.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
                 fig_dev.update_layout(
                     plot_bgcolor='white', font=dict(color='black'), margin=dict(r=80, b=120),
@@ -284,11 +288,11 @@ if uploaded_file is not None:
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
-        st.sidebar.header("📥 [4] Xuất Báo Cáo Nhanh (HTML)")
-        st.sidebar.info("👉 Xuất file nhẹ, không lỗi. Chỉ xuất dữ liệu '正面漆' của THÁNG MỚI NHẤT.")
+        st.sidebar.header("📥 [4] 快速匯出報表 (HTML)")
+        st.sidebar.info("👉 快速產生報表。僅匯出「最新月份」的「正面漆」數據。")
         
-        if st.sidebar.button("📄 Tạo báo cáo HTML (正面漆 - Tháng mới nhất)"):
-            with st.spinner("Đang tạo báo cáo tốc độ cao..."):
+        if st.sidebar.button("📄 產生 HTML 報表 (正面漆 - 最新月份)"):
+            with st.spinner("報表生成中..."):
                 try:
                     # Lấy tháng lớn nhất (tháng mới nhất) trong dữ liệu
                     latest_month = df['年月'].dropna().max()
@@ -297,7 +301,7 @@ if uploaded_file is not None:
                     df_word = df[(df['用途'] == '正面漆') & (df['年月'] == latest_month)].copy()
                     
                     if df_word.empty:
-                        st.sidebar.error(f"❌ Không tìm thấy dữ liệu '正面漆' cho tháng mới nhất ({latest_month}).")
+                        st.sidebar.error(f"❌ 找不到最新月份 ({latest_month}) 的正面漆數據。")
                     else:
                         lines = sorted(df_word['線別'].unique())
                         
@@ -305,7 +309,7 @@ if uploaded_file is not None:
                         <html>
                         <head>
                             <meta charset="UTF-8">
-                            <title>Báo Cáo Hiệu Suất Sơn</title>
+                            <title>塗料生產績效報表</title>
                             <style>
                                 body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }}
                                 .container {{ background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }}
@@ -318,7 +322,7 @@ if uploaded_file is not None:
                         <body>
                         <div class="container">
                             <h1>📊 塗料生產績效看板 - 正面漆 報告</h1>
-                            <h3 style='text-align:center; color:#7f8c8d;'>Tháng báo cáo: {latest_month}</h3>
+                            <h3 style='text-align:center; color:#7f8c8d;'>報表月份: {latest_month}</h3>
                         """
                         
                         for line in lines:
@@ -332,6 +336,9 @@ if uploaded_file is not None:
 
                             # --- Chart 1 ---
                             html_content += "<h3>1. 塗料績效燈號全景總覽</h3>"
+                            # Thêm ghi chú đọc biểu đồ như yêu cầu
+                            html_content += "<p style='color:#666; font-size:14px;'>💡 <b>圖表說明：</b>X 軸為塗料排序序號，為避免畫面擁擠隱藏了名稱。請將游標懸停 (Hover) 於圓點上，即可查看對應的確切【塗料編號】與詳細數值。</p>"
+                            
                             plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                             plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                             
@@ -340,20 +347,23 @@ if uploaded_file is not None:
                                 seq_map_line = {code: i+1 for i, code in enumerate(sort_order_line)}
                                 plot_df_line['塗料序號'] = plot_df_line['塗料編號'].map(seq_map_line)
                                 
+                                # FIX: Thêm hover_name và hover_data để hiện mã sơn
                                 fig4 = px.scatter(
                                     plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
                                     color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                                    size='合計理論耗用', size_max=35, category_orders={"績效等級": labels_global}
+                                    size='合計理論耗用', size_max=35, category_orders={"績效等級": labels_global},
+                                    hover_name='塗料編號',
+                                    hover_data={'塗料序號': False, '線別': True, '用途': True, '合計理論耗用': True, '合計實際耗用': True}
                                 )
                                 fig4.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                                 fig4.update_layout(
                                     title=f"Line {line} - 全廠塗料績效分佈圖", height=550, 
-                                    xaxis=dict(title=f"塗料排序序號 (1 Đến {total_paints_line})", automargin=True), 
+                                    xaxis=dict(title=f"塗料排序序號 (1 到 {total_paints_line})", automargin=True), 
                                     yaxis_title="合計績效 (%)", margin=dict(b=80)
                                 )
                                 html_content += f"<div class='chart-box'>{fig4.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
                             else:
-                                html_content += "<p>Không đủ dữ liệu hiệu suất để hiển thị biểu đồ này.</p>"
+                                html_content += "<p>無足夠的績效數據可供顯示。</p>"
 
                             # --- Chart 2 ---
                             html_content += "<h3>2. 異常超耗柏拉圖 (Pareto Priority)</h3>"
@@ -365,8 +375,9 @@ if uploaded_file is not None:
                                 top_pareto = pareto_df.head(40)
 
                                 fig2 = go.Figure()
-                                fig2.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量', marker_color='#d73027'))
-                                fig2.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計 ảnh hưởng (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
+                                # FIX: Thêm hovertext cho chart go.Bar
+                                fig2.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量', marker_color='#d73027', hovertext=top_pareto['塗料編號']))
+                                fig2.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
                                 fig2.update_layout(
                                     title=f"Line {line} - Top 40 成本流失最大塗料排行", height=550, showlegend=False, 
                                     yaxis2=dict(overlaying='y', side='right', range=[0, 105]),
@@ -375,7 +386,7 @@ if uploaded_file is not None:
                                 )
                                 html_content += f"<div class='chart-box'>{fig2.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
                             else:
-                                html_content += "<p>🎉 Tuyệt vời! Line này hiện không có mã sơn nào bị vượt định mức (Over-used).</p>"
+                                html_content += "<p>🎉 太棒了！此線別目前沒有任何超耗的塗料。</p>"
 
                             # --- Chart 3 ---
                             html_content += "<h3>3. 單一塗料：耗用差異絕對值</h3>"
@@ -391,7 +402,8 @@ if uploaded_file is not None:
                                     df_dev = batch_df.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                                     df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
                                     
-                                    fig6 = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
+                                    # FIX: Thêm hover_name cho chart px.bar
+                                    fig6 = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', hover_name='塗料編號', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                                     fig6.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
                                     fig6.update_layout(
                                         title=f"Line {line} - 第 {i+1} 組差異明細", height=550, showlegend=False,
@@ -406,16 +418,16 @@ if uploaded_file is not None:
                         </html>
                         """
                         
-                        st.sidebar.success(f"✅ Tạo báo cáo siêu tốc thành công (Tháng {latest_month})!")
+                        st.sidebar.success(f"✅ 報表生成成功 (月份：{latest_month})！")
                         st.sidebar.download_button(
-                            label="📥 Tải xuống Báo Cáo (Xem trên Web/In PDF)",
+                            label="📥 下載報表 (HTML)",
                             data=html_content.encode('utf-8'),
                             file_name=f"BaoCao_HieuSuat_ChinhDien_{latest_month}.html",
                             mime="text/html"
                         )
                         
                 except Exception as e:
-                    st.sidebar.error(f"❌ Lỗi: {e}")
+                    st.sidebar.error(f"❌ 錯誤: {e}")
 
     except Exception as e:
         st.error(f"系統錯誤：{e}")
