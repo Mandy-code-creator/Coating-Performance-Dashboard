@@ -103,15 +103,14 @@ if uploaded_file is not None:
         num_charts = math.ceil(total_paints / items_per_chart) if items_per_chart else 0
 
         tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev = st.tabs([
-            "🍩 [總覽] 績效分佈 (Overview)", 
-            "🚨 [決策] 優先改善清單 (Pareto)", 
-            "📦 [根因] 穩定度分析 (Box Plot)", 
-            "🎯 [全景] 績效燈號 (Scatter)", 
-            "📊 [明細] 耗用對比 (Bar)", 
-            "📉 [明細] 差異分析 (Deviation)"
+            "🍩 [總覽] 績效分佈", 
+            "🚨 [決策] 優先改善清單", 
+            "📦 [根因] 穩定度分析", 
+            "🎯 [全景] 績效燈號", 
+            "📊 [明細] 耗用對比", 
+            "📉 [明細] 差異分析"
         ])
 
-        # --- 1. MACRO VIEW: PIE CHART & DECISION TABLE ---
         with tab_overview:
             st.subheader("1. 產線整體績效總覽與行動清單 (Macro Overview)")
             if not filtered_df.empty:
@@ -153,7 +152,6 @@ if uploaded_file is not None:
                 else:
                     st.success("🎉 目前無超耗塗料！")
 
-        # --- 2. ACTIONABLE VIEW: PARETO CHART ---
         with tab_pareto:
             st.subheader("2. 異常超耗柏拉圖 (Pareto Priority)")
             pareto_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
@@ -177,7 +175,6 @@ if uploaded_file is not None:
             else:
                 st.success("🎉 目前無超耗記錄，所有塗料皆達標或節省！")
 
-        # --- 3. ROOT CAUSE VIEW: BOX PLOT ---
         with tab_rootcause:
             col1, col2 = st.columns(2)
             NO_RED_PALETTE = ['#1f77b4', '#ff7f0e', '#2ca02c', '#9467bd', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf']
@@ -213,7 +210,6 @@ if uploaded_file is not None:
                         )
                         st.plotly_chart(fig_box2, use_container_width=True)
 
-        # --- 4. MACRO VIEW: FULL SCATTER PLOT ---
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
             st.info("💡 **圖表說明：** 圓點的大小代表「合計理論耗用」量。圓點越大，表示該塗料在系統設定上的預期耗用量越高。")
@@ -248,7 +244,6 @@ if uploaded_file is not None:
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-        # --- 5. MICRO VIEW: BAR CHART ---
         with tab_bar:
             st.subheader("5. 單一塗料：理論耗用 vs 實際耗用明細")
             for i in range(num_charts):
@@ -267,7 +262,6 @@ if uploaded_file is not None:
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- 6. MICRO VIEW: DEVIATION CHART ---
         with tab_dev:
             st.subheader("6. 單一塗料：耗用差異絕對值 (Δ 實際 - 理論)")
             for i in range(num_charts):
@@ -294,7 +288,7 @@ if uploaded_file is not None:
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
-        st.sidebar.header("📥 [4] 匯出報表 (HTML)")
+        st.sidebar.header("📥 [4] 快速匯出報表 (HTML)")
         st.sidebar.info("👉 僅匯出「最新月份」的「正面漆」數據。")
         
         if st.sidebar.button("📄 產生 HTML 報表 (正面漆 - 最新月份)"):
@@ -317,9 +311,15 @@ if uploaded_file is not None:
                                 body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }}
                                 .container {{ background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }}
                                 h1 {{ color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px;}}
-                                h2 {{ color: #e67e22; margin-top: 40px; border-bottom: 1px dashed #ccc; padding-bottom: 5px;}}
-                                h3 {{ color: #34495e; margin-top: 30px; }}
-                                .chart-box {{ margin-bottom: 30px; border: 1px solid #eee; border-radius: 8px; padding: 10px; }}
+                                h2 {{ color: #e67e22; margin-top: 40px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; page-break-after: avoid; break-after: avoid;}}
+                                h3 {{ color: #34495e; margin-top: 30px; page-break-after: avoid; break-after: avoid;}}
+                                .chart-box {{ margin-bottom: 30px; border: 1px solid #eee; border-radius: 8px; padding: 10px; page-break-inside: avoid; break-inside: avoid; }}
+                                
+                                @media print {{
+                                    body, .container {{ background-color: white; box-shadow: none; padding: 0; margin: 0; max-width: 100%; }}
+                                    .chart-box {{ break-inside: avoid; page-break-inside: avoid; border: none; }}
+                                    h2, h3 {{ break-after: avoid; page-break-after: avoid; }}
+                                }}
                             </style>
                         </head>
                         <body>
@@ -422,7 +422,7 @@ if uploaded_file is not None:
                         st.sidebar.download_button(
                             label="📥 下載報表 (HTML)",
                             data=html_content.encode('utf-8'),
-                            file_name=f"BaoCao_HieuSuat_ChinhDien_{latest_month}.html",
+                            file_name=f"Performance_Report_Topcoat_{latest_month}.html",
                             mime="text/html"
                         )
                         
