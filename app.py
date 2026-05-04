@@ -189,13 +189,22 @@ if uploaded_file is not None:
                 fig_pareto = go.Figure()
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
+                
                 fig_pareto.update_layout(**common_layout)
+                
+                # Sửa lỗi đè nhãn (Label Overlap Fix)
                 fig_pareto.update_layout(
-                    xaxis=dict(title="<b>塗料編號 (Paint ID)</b>"),
+                    xaxis=dict(
+                        title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40),
+                        tickangle=-90,
+                        automargin=True
+                    ),
                     yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
                     yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                    height=650, title="<b>Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
-                    showlegend=True
+                    height=650, 
+                    title="<b>Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
+                    showlegend=True,
+                    margin=dict(b=160) # Mở rộng khoảng cách bên dưới
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
 
@@ -285,7 +294,19 @@ if uploaded_file is not None:
                 fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際 (Actual)', marker_color='#3498db', marker_line_color='black', marker_line_width=1.5))
                 
                 fig_bar.update_layout(**common_layout)
-                fig_bar.update_layout(barmode='group', height=550, title=f"<b>第 {i+1} 組耗用對比 (Group {i+1} Comparison)</b>", xaxis_title="<b>塗料編號 (Paint ID)</b>", yaxis_title="<b>耗用量 (Consumption)</b>")
+                
+                # Sửa lỗi đè nhãn (Label Overlap Fix)
+                fig_bar.update_layout(
+                    barmode='group', height=550, 
+                    title=f"<b>第 {i+1} 組耗用對比 (Group {i+1} Comparison)</b>", 
+                    xaxis=dict(
+                        title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40),
+                        tickangle=-90,
+                        automargin=True
+                    ),
+                    yaxis=dict(title="<b>耗用量 (Consumption)</b>"),
+                    margin=dict(b=160) # Mở rộng khoảng cách bên dưới
+                )
                 st.plotly_chart(fig_bar, use_container_width=True)
 
         with tab_dev:
@@ -302,7 +323,19 @@ if uploaded_file is not None:
                 fig_dev.add_hline(y=0, line_color="black", line_width=2)
                 
                 fig_dev.update_layout(**common_layout)
-                fig_dev.update_layout(height=550, title=f"<b>第 {i+1} 組差異明細 (Group {i+1} Deviation)</b>", xaxis_title="<b>塗料編號 (Paint ID)</b>", yaxis_title="<b>差異量 (Deviation)</b>")
+                
+                # Sửa lỗi đè nhãn (Label Overlap Fix)
+                fig_dev.update_layout(
+                    height=550, 
+                    title=f"<b>第 {i+1} 組差異明細 (Group {i+1} Deviation)</b>", 
+                    xaxis=dict(
+                        title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40),
+                        tickangle=-90,
+                        automargin=True
+                    ),
+                    yaxis=dict(title="<b>差異量 (Deviation)</b>"),
+                    margin=dict(b=160) # Mở rộng khoảng cách bên dưới
+                )
                 fig_dev.update_traces(marker=dict(line=dict(width=1.5, color='black')))
                 st.plotly_chart(fig_dev, use_container_width=True)
 
@@ -355,7 +388,7 @@ if uploaded_file is not None:
                         sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                         total_paints_line = len(sort_order_line)
                         
-                        # --- 1. SCATTER PLOT (Export Version - Matches App Design Exactly) ---
+                        # --- 1. SCATTER PLOT (Export Version) ---
                         plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                         plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                         if not plot_df_line.empty:
@@ -386,7 +419,7 @@ if uploaded_file is not None:
                             fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                             html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                         
-                        # --- 2. PARETO CHART (Export Version - Matches App Design Exactly) ---
+                        # --- 2. PARETO CHART (Export Version) ---
                         html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                         pareto_df = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                         if not pareto_df.empty:
@@ -397,12 +430,20 @@ if uploaded_file is not None:
                             fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                             fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                             fig_pareto.update_layout(**common_layout)
+                            
+                            # Sửa lỗi đè nhãn cho HTML Export (Label Overlap Fix)
                             fig_pareto.update_layout(
-                                xaxis=dict(title="<b>塗料編號 (Paint ID)</b>"),
+                                xaxis=dict(
+                                    title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40),
+                                    tickangle=-90,
+                                    automargin=True
+                                ),
                                 yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
                                 yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                                height=650, title=f"<b>Line {line} - Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
-                                showlegend=True
+                                height=650, 
+                                title=f"<b>Line {line} - Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
+                                showlegend=True,
+                                margin=dict(b=160) # Mở rộng khoảng cách bên dưới
                             )
                             html_content += fig_pareto.to_html(full_html=False, include_plotlyjs='cdn')
                         else:
