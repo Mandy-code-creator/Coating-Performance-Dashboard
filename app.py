@@ -207,8 +207,10 @@ if uploaded_file is not None:
             with col1:
                 if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
                     fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
-                    # ADD TARGET LINE
+                    # ADD REFERENCE LINES (90, 100, 110)
                     fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                    fig_box1.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
+                    fig_box1.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
                     fig_box1.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
                     
                     fig_box1.update_layout(**common_layout)
@@ -220,8 +222,10 @@ if uploaded_file is not None:
                     shift_df['班別'] = shift_df['班別'].str.replace('班績效%', '班')
                     if not shift_df.empty:
                         fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
-                        # ADD TARGET LINE
+                        # ADD REFERENCE LINES (90, 100, 110)
                         fig_box2.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                        fig_box2.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
+                        fig_box2.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
                         fig_box2.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
                         
                         fig_box2.update_layout(**common_layout)
@@ -230,6 +234,16 @@ if uploaded_file is not None:
 
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
+            
+            # --- GUIDE FOR SCATTER PLOT ---
+            st.info("""
+            💡 **圖表說明 (How to read this chart):**
+            * **X軸 (X-Axis):** 塗料排序序號 (Paint Sequence No.).
+            * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
+            * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption). 圓點越大，系統設定上的預期耗用量越高 (Larger bubble = Higher expected consumption).
+            * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線 (Red dashed line)；**90% & 110%** 為橘色點線 (Orange dotted lines)，輔助辨識效能邊界 (Help identify performance boundaries).
+            """)
+            
             if not filtered_df.empty:
                 plot_df = filtered_df.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                 plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
@@ -245,9 +259,14 @@ if uploaded_file is not None:
                         hover_name='塗料編號'
                     )
                     
-                    # ADD TARGET LINE
+                    # ADD REFERENCE LINES (90, 100, 110)
                     fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                    fig.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
+                    fig.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
+                    
                     fig.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=16, weight="bold"))
+                    fig.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Bound</b>", showarrow=False, xanchor="right", yanchor="top", font=dict(color="orange", size=13, weight="bold"))
+                    fig.add_annotation(x=1, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="orange", size=13, weight="bold"))
 
                     fig.update_layout(**common_layout)
                     fig.update_layout(
@@ -320,8 +339,13 @@ if uploaded_file is not None:
                                             color_discrete_map=perf_color_map, 
                                             category_orders={"績效等級": labels_global},
                                             title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>")
+                        
+                        # Add Lines to HTML Export as well
                         fig_line.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                        fig_line.add_hline(y=90, line_dash="dot", line_color="orange", line_width=2)
+                        fig_line.add_hline(y=110, line_dash="dot", line_color="orange", line_width=2)
                         fig_line.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
+                        
                         fig_line.update_layout(**common_layout)
                         html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                     
