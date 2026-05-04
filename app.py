@@ -358,10 +358,16 @@ if uploaded_file is not None:
                                 )
                                 fig4.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
                                 fig4.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 目標 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14))
+                                
+                                fig4.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
+                                min_perf, max_perf = plot_df_line['合計績效%'].min(), plot_df_line['合計績效%'].max()
+                                y_min_pad, y_max_pad = math.floor(min_perf / 10) * 10 - 5, math.ceil(max_perf / 10) * 10 + 10
+
                                 fig4.update_layout(
-                                    title=f"Line {line} - 全廠塗料績效分佈圖", height=550, 
-                                    xaxis=dict(title=f"塗料排序序號 (1 到 {total_paints_line})", automargin=True), 
-                                    yaxis_title="合計績效 (%)", margin=dict(b=80)
+                                    plot_bgcolor='white', font=dict(color='black', size=13), margin=dict(r=100),
+                                    xaxis=dict(title=f"<b>塗料排序序號 (1 到 {total_paints_line})</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                                    yaxis=dict(title="<b>合計績效 (%)</b>", dtick=10, range=[y_min_pad, y_max_pad], gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                                    height=700, title=f"<b>Line {line} - 全廠塗料績效分佈圖</b>"
                                 )
                                 html_content += f"<div class='chart-box'>{fig4.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
                             else:
@@ -380,10 +386,11 @@ if uploaded_file is not None:
                                 fig2.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量', marker_color='#d73027', hovertext=top_pareto['塗料編號']))
                                 fig2.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
                                 fig2.update_layout(
-                                    title=f"Line {line} - Top 40 成本流失最大塗料排行", height=550, showlegend=False, 
-                                    yaxis2=dict(overlaying='y', side='right', range=[0, 105]),
-                                    xaxis=dict(tickangle=-90, title="", automargin=True),
-                                    margin=dict(b=120)
+                                    plot_bgcolor='white', font=dict(color='black'), showlegend=False,
+                                    xaxis=dict(tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True, automargin=True, title=""),
+                                    yaxis=dict(title="<b>超耗量</b>", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
+                                    yaxis2=dict(title="<b>累計影響 (%)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=1.5, linecolor='black'),
+                                    height=650, title=f"<b>Line {line} - Top 40 成本流失最大塗料排行</b>", margin=dict(b=120)
                                 )
                                 html_content += f"<div class='chart-box'>{fig2.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
                             else:
@@ -406,9 +413,10 @@ if uploaded_file is not None:
                                     fig6 = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', hover_name='塗料編號', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                                     fig6.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
                                     fig6.update_layout(
-                                        title=f"Line {line} - 第 {i+1} 組差異明細", height=550, showlegend=False,
-                                        xaxis=dict(tickangle=-90, title="", automargin=True),
-                                        margin=dict(b=120)
+                                        plot_bgcolor='white', font=dict(color='black'), margin=dict(r=80, b=120),
+                                        xaxis=dict(dtick=1, tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True, automargin=True, title=""),
+                                        yaxis=dict(title="<b>差異量 (Δ耗用)</b>", gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
+                                        height=600, title=f"<b>Line {line} - 第 {i+1} 組差異明細</b>"
                                     )
                                     html_content += f"<div class='chart-box'>{fig6.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
 
