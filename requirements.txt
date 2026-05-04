@@ -3,5 +3,3 @@ pandas
 plotly
 numpy
 openpyxl
-python-docx
-kaleido
