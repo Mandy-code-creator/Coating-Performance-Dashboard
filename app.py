@@ -355,20 +355,38 @@ if uploaded_file is not None:
                         sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                         total_paints_line = len(sort_order_line)
                         
-                        # --- 1. SCATTER PLOT ---
-                        fig_line = px.scatter(df_line, x='塗料編號', y='合計績效%', color='績效等級',
-                                            color_discrete_map=perf_color_map, 
-                                            category_orders={"績效等級": labels_global},
-                                            title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>")
-                        fig_line.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
-                        fig_line.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
-                        fig_line.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
-                        fig_line.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
-                        fig_line.update_layout(**common_layout)
-                        fig_line.update_layout(xaxis_title=f"<b>塗料編號 (Paint ID) - 總計: {total_paints_line} 支 (Total Items)</b>", yaxis_title="<b>合計績效 (%)</b>")
-                        html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
+                        # --- 1. SCATTER PLOT (Export Version - Matches App Design Exactly) ---
+                        plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
+                        plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
+                        if not plot_df_line.empty:
+                            seq_map_line = {code: i+1 for i, code in enumerate(sort_order_line)}
+                            plot_df_line['塗料序號'] = plot_df_line['塗料編號'].map(seq_map_line)
+                            
+                            fig_line = px.scatter(plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
+                                                color_discrete_map=perf_color_map, 
+                                                size='合計理論耗用', size_max=30,
+                                                category_orders={"績效等級": labels_global},
+                                                hover_name='塗料編號')
+                            
+                            fig_line.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                            fig_line.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
+                            fig_line.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
+                            
+                            fig_line.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=16, weight="bold"))
+                            fig_line.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Bound</b>", showarrow=False, xanchor="right", yanchor="top", font=dict(color="deepskyblue", size=13, weight="bold"))
+                            fig_line.add_annotation(x=1, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="deepskyblue", size=13, weight="bold"))
+                            
+                            fig_line.update_layout(**common_layout)
+                            fig_line.update_layout(
+                                height=700,
+                                title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>",
+                                xaxis_title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints_line} 支 (Total Items)</b>", 
+                                yaxis_title="<b>合計績效 (%)</b>"
+                            )
+                            fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
+                            html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                         
-                        # --- 2. PARETO CHART ---
+                        # --- 2. PARETO CHART (Export Version - Matches App Design Exactly) ---
                         html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                         pareto_df = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                         if not pareto_df.empty:
@@ -383,7 +401,7 @@ if uploaded_file is not None:
                                 xaxis=dict(title="<b>塗料編號 (Paint ID)</b>"),
                                 yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
                                 yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                                height=500, title="<b>Top 40 成本流失最大塗料排行</b>",
+                                height=650, title=f"<b>Line {line} - Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
                                 showlegend=True
                             )
                             html_content += fig_pareto.to_html(full_html=False, include_plotlyjs='cdn')
