@@ -28,7 +28,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("📊 塗料生產績效與耗用分析儀表板")
-st.markdown("依據 MES/Excel 數據進行系統化分析 (高階決策最佳化佈局)")
+st.markdown("<b>依據 MES/Excel 數據進行系統化分析 (高階決策最佳化佈局)</b>", unsafe_allow_html=True)
 
 # ==========================================
 # [ 1. DATA SOURCE & DATA LOAD ]
@@ -75,7 +75,7 @@ if uploaded_file is not None:
         df['Sort_Group'] = df['塗料編號'].apply(lambda x: 'GE00_01_Group' if any(g in str(x) for g in ['GE00', 'GE01']) else str(x))
 
         # ==========================================
-        # [ CẬP NHẬT QUY TẮC MÀU MỚI ]
+        # [ COLOR MAP (NO VIETNAMESE) ]
         # ==========================================
         conds_global = [
             df['合計績效%'] < 80, 
@@ -85,18 +85,18 @@ if uploaded_file is not None:
             df['合計績效%'] > 110
         ]
         labels_global = [
-            '🔴 < 80% (Rất thấp)', 
-            '🟠 80% - 90% (Thấp)', 
-            '🟢 90% - 100% (Đạt)', 
-            '🌱 100% - 110% (Tốt)', 
-            '🔵 > 110% (Vượt mức)'
+            '🔴 < 80%', 
+            '🟠 80% - 90%', 
+            '🟢 90% - 100%', 
+            '🌱 100% - 110%', 
+            '🔵 > 110%'
         ]
         perf_color_map = {
-            '🔴 < 80% (Rất thấp)': '#990000',    # Đỏ đậm
-            '🟠 80% - 90% (Thấp)': '#FF8C00',     # Cam đậm
-            '🟢 90% - 100% (Đạt)': '#008000',     # Xanh lá cây
-            '🌱 100% - 110% (Tốt)': '#ADFF2F',    # Xanh lá chuối
-            '🔵 > 110% (Vượt mức)': '#00008B'     # Xanh dương đậm
+            '🔴 < 80%': '#990000',
+            '🟠 80% - 90%': '#FF8C00',
+            '🟢 90% - 100%': '#008000',
+            '🌱 100% - 110%': '#ADFF2F',
+            '🔵 > 110%': '#00008B'
         }
         df['績效等級'] = np.select(conds_global, labels_global, default='未知')
 
@@ -133,6 +133,14 @@ if uploaded_file is not None:
             "📉 [明細] 差異分析"
         ])
 
+        # Default chart layout settings (Bold fonts, borders)
+        common_layout = dict(
+            plot_bgcolor='white',
+            font=dict(color='black', family='Arial', size=13, weight='bold'),
+            xaxis=dict(showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
+            yaxis=dict(showline=True, linewidth=2, linecolor='black', mirror=True, gridcolor='#e6e6e6', title_font=dict(weight='bold'))
+        )
+
         with tab_overview:
             st.subheader("1. 產線整體績效總覽與行動清單")
             if not filtered_df.empty:
@@ -156,19 +164,19 @@ if uploaded_file is not None:
                         color_discrete_map=perf_color_map, hole=0.4,
                         category_orders={"績效等級": labels_global}
                     )
-                    fig_pie.update_traces(textposition='inside', textinfo='percent+label+value', marker=dict(line=dict(color='white', width=2)))
-                    fig_pie.update_layout(title="<b>塗料績效等級比例</b>", showlegend=True)
+                    fig_pie.update_traces(textposition='inside', textinfo='percent+label+value', marker=dict(line=dict(color='black', width=2)), textfont_size=14)
+                    fig_pie.update_layout(title="<b>塗料績效等級比例 (Performance Distribution)</b>", showlegend=True, font=dict(weight='bold', color='black'))
                     st.plotly_chart(fig_pie, use_container_width=True)
             
             with col_table:
-                st.markdown("##### 🚨 Top 10 嚴重超耗塗料清單")
+                st.markdown("##### 🚨 Top 10 嚴重超耗塗料清單 (Top 10 Over-consumption)")
                 over_used_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].copy()
                 if not over_used_df.empty:
                     decision_table = over_used_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
                     show_cols = ['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
                     decision_table = decision_table[show_cols]
-                    decision_table.columns = ['塗料編號', '油漆廠商', '線別', '合計績效 (%)', '🔥 超耗量']
-                    st.dataframe(decision_table.style.format({'合計績效 (%)': '{:.2f}%', '🔥 超耗量': '{:,.0f}'}), use_container_width=True, hide_index=True)
+                    decision_table.columns = ['塗料編號 (Paint ID)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
+                    st.dataframe(decision_table.style.format({'合計績效 (%)': '{:.2f}%', '🔥 超耗量 (Over-used)': '{:,.0f}'}), use_container_width=True, hide_index=True)
                 else:
                     st.success("🎉 目前無超耗塗料！")
 
@@ -180,14 +188,45 @@ if uploaded_file is not None:
                 pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
                 top_pareto = pareto_df.head(40)
                 fig_pareto = go.Figure()
-                fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量', marker_color='#990000'))
-                fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計%', yaxis='y2', line=dict(color='#00008B', width=3)))
+                fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
+                fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
+                fig_pareto.update_layout(**common_layout)
                 fig_pareto.update_layout(
-                    yaxis=dict(title="超耗量"),
-                    yaxis2=dict(title="累計%", overlaying='y', side='right', range=[0, 105]),
-                    height=600, title="<b>Top 40 成本流失最大塗料排行</b>"
+                    xaxis=dict(title="<b>塗料編號 (Paint ID)</b>"),
+                    yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
+                    yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
+                    height=650, title="<b>Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
+                    showlegend=True
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
+
+        with tab_rootcause:
+            st.subheader("3. 穩定度分析 (Stability Analysis)")
+            col1, col2 = st.columns(2)
+            NO_RED_PALETTE = ['#1f77b4', '#ff7f0e', '#2ca02c', '#9467bd', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf']
+            with col1:
+                if '油漆廠商' in filtered_df.columns and not filtered_df.empty:
+                    fig_box1 = px.box(filtered_df, x='油漆廠商', y='合計績效%', color='油漆廠商', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
+                    # ADD TARGET LINE
+                    fig_box1.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                    fig_box1.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
+                    
+                    fig_box1.update_layout(**common_layout)
+                    fig_box1.update_layout(height=550, title="<b>供應商品質穩定度 (Supplier QC)</b>", xaxis_title="<b>油漆廠商 (Supplier)</b>", yaxis_title="<b>合計績效 (%)</b>", showlegend=False)
+                    st.plotly_chart(fig_box1, use_container_width=True)
+            with col2:
+                if shift_cols:
+                    shift_df = pd.melt(filtered_df, id_vars=['塗料編號'], value_vars=shift_cols, var_name='班別', value_name='績效%').dropna(subset=['績效%'])
+                    shift_df['班別'] = shift_df['班別'].str.replace('班績效%', '班')
+                    if not shift_df.empty:
+                        fig_box2 = px.box(shift_df, x='班別', y='績效%', color='班別', points="all", hover_data=['塗料編號'], color_discrete_sequence=NO_RED_PALETTE)
+                        # ADD TARGET LINE
+                        fig_box2.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                        fig_box2.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
+                        
+                        fig_box2.update_layout(**common_layout)
+                        fig_box2.update_layout(height=550, title="<b>班別操作穩定度 (Shift Operations)</b>", xaxis_title="<b>班別 (Shift)</b>", yaxis_title="<b>績效 (%)</b>", showlegend=False)
+                        st.plotly_chart(fig_box2, use_container_width=True)
 
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
@@ -205,8 +244,19 @@ if uploaded_file is not None:
                         category_orders={"績效等級": labels_global},
                         hover_name='塗料編號'
                     )
-                    fig.add_hline(y=100, line_dash="dash", line_color="red")
-                    fig.update_layout(height=700, plot_bgcolor='white', title="<b>全廠塗料績效分佈圖</b>")
+                    
+                    # ADD TARGET LINE
+                    fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                    fig.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=16, weight="bold"))
+
+                    fig.update_layout(**common_layout)
+                    fig.update_layout(
+                        height=700, 
+                        title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
+                        xaxis_title="<b>塗料排序序號 (Paint Sequence No.)</b>",
+                        yaxis_title="<b>合計績效 (%)</b>"
+                    )
+                    fig.update_traces(marker=dict(line=dict(width=1, color='black')))
                     st.plotly_chart(fig, use_container_width=True)
 
         with tab_bar:
@@ -217,9 +267,11 @@ if uploaded_file is not None:
                 batch_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)]
                 df_bar = batch_df.groupby('塗料編號')[['合計理論耗用', '合計實際耗用']].sum().reset_index()
                 fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論', marker_color='#34495e'))
-                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際', marker_color='#3498db'))
-                fig_bar.update_layout(barmode='group', height=500, title=f"第 {i+1} 組耗用對比")
+                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計理論耗用'], name='理論 (Theoretical)', marker_color='#34495e', marker_line_color='black', marker_line_width=1.5))
+                fig_bar.add_trace(go.Bar(x=df_bar['塗料編號'], y=df_bar['合計實際耗用'], name='實際 (Actual)', marker_color='#3498db', marker_line_color='black', marker_line_width=1.5))
+                
+                fig_bar.update_layout(**common_layout)
+                fig_bar.update_layout(barmode='group', height=550, title=f"<b>第 {i+1} 組耗用對比 (Group {i+1} Comparison)</b>", xaxis_title="<b>塗料編號 (Paint ID)</b>", yaxis_title="<b>耗用量 (Consumption)</b>")
                 st.plotly_chart(fig_bar, use_container_width=True)
 
         with tab_dev:
@@ -229,11 +281,15 @@ if uploaded_file is not None:
                 current_batch = sort_order[start_idx : start_idx + items_per_chart]
                 batch_df = filtered_df[filtered_df['塗料編號'].isin(current_batch)]
                 df_dev = batch_df.groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
-                df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
+                df_dev['Color'] = np.where(df_dev['Δ耗用 (Deviation)'] > 0, '超耗 (Over)', '節省 (Save)')
+                
                 fig_dev = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', 
-                                 color_discrete_map={'超耗': '#990000', '節省': '#008000'})
-                fig_dev.add_hline(y=0, line_color="black")
-                fig_dev.update_layout(height=500, title=f"第 {i+1} 組差異明細")
+                                 color_discrete_map={'超耗 (Over)': '#990000', '節省 (Save)': '#008000'})
+                fig_dev.add_hline(y=0, line_color="black", line_width=2)
+                
+                fig_dev.update_layout(**common_layout)
+                fig_dev.update_layout(height=550, title=f"<b>第 {i+1} 組差異明細 (Group {i+1} Deviation)</b>", xaxis_title="<b>塗料編號 (Paint ID)</b>", yaxis_title="<b>差異量 (Deviation)</b>")
+                fig_dev.update_traces(marker=dict(line=dict(width=1.5, color='black')))
                 st.plotly_chart(fig_dev, use_container_width=True)
 
         with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
@@ -243,35 +299,38 @@ if uploaded_file is not None:
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
-        st.sidebar.header("📥 [4] 快速匯出報表 (HTML)")
+        st.sidebar.header("📥 [4] 快速匯出報表 (HTML Export)")
         
-        if st.sidebar.button("📄 產生 HTML 報表"):
+        if st.sidebar.button("📄 產生 HTML 報表 (Generate Report)"):
             try:
                 latest_month = df['年月'].dropna().max()
                 df_word = df[(df['用途'] == '正面漆') & (df['年月'] == latest_month)].copy()
                 
                 if df_word.empty:
-                    st.sidebar.error("❌ 找不到最新月份數據。")
+                    st.sidebar.error("❌ 找不到最新月份數據。(No data for the latest month)")
                 else:
                     lines = sorted(df_word['線別'].unique())
-                    html_content = f"<html><head><meta charset='UTF-8'><title>績效報表</title></head><body>"
+                    html_content = f"<html><head><meta charset='UTF-8'><title>Performance Report</title></head><body>"
                     html_content += f"<h1 style='text-align:center;'>📊 塗料生產績效報告 - {latest_month}</h1>"
                     
                     for line in lines:
-                        html_content += f"<h2>🏭 線別: {line}</h2>"
+                        html_content += f"<h2>🏭 線別 (Line): {line}</h2>"
                         df_line = df_word[df_word['線別'] == line].copy()
                         fig_line = px.scatter(df_line, x='塗料編號', y='合計績效%', color='績效等級',
                                             color_discrete_map=perf_color_map, 
                                             category_orders={"績效等級": labels_global},
-                                            title=f"Line {line} 績效概覽")
+                                            title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>")
+                        fig_line.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                        fig_line.add_annotation(x=1, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="red", size=14, weight="bold"))
+                        fig_line.update_layout(**common_layout)
                         html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                     
                     html_content += "</body></html>"
-                    st.sidebar.download_button("📥 下載報表", data=html_content.encode('utf-8'), file_name=f"Report_{latest_month}.html", mime="text/html")
+                    st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{latest_month}.html", mime="text/html")
             except Exception as e:
-                st.sidebar.error(f"錯誤: {e}")
+                st.sidebar.error(f"Error: {e}")
 
     except Exception as e:
-        st.error(f"系統錯誤：{e}")
+        st.error(f"System Error：{e}")
 else:
-    st.info("👈 請上傳 MES 數據檔案。")
+    st.info("👈 請上傳 MES 數據檔案。(Please upload MES Data file)")
