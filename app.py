@@ -352,19 +352,16 @@ if uploaded_file is not None:
         with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
             st.dataframe(filtered_df)
 
-        # ==========================================
-        # [ 4. EXPORT REPORT TO WORD ]
+# ==========================================
+        # [ 4. EXPORT REPORT TO HTML (Không cần cài đặt phức tạp) ]
         # ==========================================
         st.sidebar.markdown("---")
-        st.sidebar.header("📥 [4] Xuất Báo Cáo Word")
-        st.sidebar.info("Chỉ xuất dữ liệu '正面漆' theo từng Line.")
+        st.sidebar.header("📥 [4] Xuất Báo Cáo Nhanh (HTML)")
+        st.sidebar.info("👉 Xuất file nhẹ, không lỗi. Bấm tải về, mở bằng Chrome và nhấn Ctrl+P để lưu PDF nếu cần.")
         
-        if st.sidebar.button("📄 Tạo báo cáo Word (正面漆)"):
-            with st.spinner("Đang xử lý dữ liệu và tạo biểu đồ, vui lòng đợi..."):
+        if st.sidebar.button("📄 Tạo báo cáo HTML (正面漆)"):
+            with st.spinner("Đang tạo báo cáo tốc độ cao..."):
                 try:
-                    doc = Document()
-                    doc.add_heading('塗料生產績效看板 - 正面漆 報告 (Báo Cáo Sơn Mặt Trước)', 0)
-
                     df_word = df[df['用途'] == '正面漆'].copy()
                     
                     if df_word.empty:
@@ -372,21 +369,37 @@ if uploaded_file is not None:
                     else:
                         lines = sorted(df_word['線別'].unique())
                         
+                        # Khởi tạo mã HTML giao diện báo cáo
+                        html_content = """
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>Báo Cáo Hiệu Suất Sơn</title>
+                            <style>
+                                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }
+                                .container { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }
+                                h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px;}
+                                h2 { color: #e67e22; margin-top: 40px; border-bottom: 1px dashed #ccc; padding-bottom: 5px;}
+                                h3 { color: #34495e; margin-top: 30px; }
+                                .chart-box { margin-bottom: 30px; border: 1px solid #eee; border-radius: 8px; padding: 10px; }
+                            </style>
+                        </head>
+                        <body>
+                        <div class="container">
+                            <h1>📊 塗料生產績效看板 - 正面漆 報告</h1>
+                        """
+                        
                         for line in lines:
-                            if line != lines[0]:
-                                doc.add_page_break()
-                                
-                            doc.add_heading(f'🏭 線別 (Line): {line}', level=1)
+                            html_content += f"<h2>🏭 線別 (Line): {line}</h2>"
                             df_line = df_word[df_word['線別'] == line].copy()
-                            
                             if df_line.empty:
                                 continue
                             
                             sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                             total_paints_line = len(sort_order_line)
 
-                            # Bieu do 1: Scatter
-                            doc.add_heading('1. 塗料績效燈號全景總覽 (Tổng quan hiệu suất)', level=2)
+                            # --- Biểu đồ 1: Scatter ---
+                            html_content += "<h3>1. 塗料績效燈號全景總覽</h3>"
                             plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                             plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                             
@@ -398,28 +411,16 @@ if uploaded_file is not None:
                                 fig4 = px.scatter(
                                     plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
                                     color_discrete_map={'🔴 < 85%': '#d73027', '🟡 85% - 95%': '#fee08b', '🔵 95% - 100%': '#4575b4', '🟢 ≥ 100%': '#1a9850'},
-                                    size='合計理論耗用', size_max=35,
-                                    category_orders={"績效等級": labels_global}
+                                    size='合計理論耗用', size_max=35, category_orders={"績效等級": labels_global}
                                 )
                                 fig4.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                                min_perf, max_perf = plot_df_line['合計績效%'].min(), plot_df_line['合計績效%'].max()
-                                y_min_pad, y_max_pad = math.floor(min_perf / 10) * 10 - 5, math.ceil(max_perf / 10) * 10 + 10
-                                
-                                fig4.update_layout(
-                                    plot_bgcolor='white', font=dict(color='black', size=13),
-                                    xaxis=dict(title=f"塗料排序序號 (1 到 {total_paints_line})", showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                                    yaxis=dict(title="合計績效 (%)", dtick=10, range=[y_min_pad, y_max_pad], gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                                    height=500, width=800, title=f"Line {line} - 全廠塗料績效分佈圖"
-                                )
-                                fig4.update_traces(marker=dict(opacity=1.0, line=dict(width=1.5, color='black')))
-                                
-                                img4_bytes = fig4.to_image(format="png", engine="kaleido")
-                                doc.add_picture(io.BytesIO(img4_bytes), width=Inches(6.5))
+                                fig4.update_layout(title=f"Line {line} - 全廠塗料績效分佈圖", height=500, xaxis_title=f"塗料排序序號 (1 Đến {total_paints_line})", yaxis_title="合計績效 (%)")
+                                html_content += f"<div class='chart-box'>{fig4.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
                             else:
-                                doc.add_paragraph("Không đủ dữ liệu hiệu suất để hiển thị biểu đồ này.")
+                                html_content += "<p>Không đủ dữ liệu hiệu suất để hiển thị biểu đồ này.</p>"
 
-                            # Bieu do 2: Pareto
-                            doc.add_heading('2. 異常超耗柏拉圖 (Biểu đồ Pareto tiêu hao bất thường)', level=2)
+                            # --- Biểu đồ 2: Pareto ---
+                            html_content += "<h3>2. 異常超耗柏拉圖 (Pareto Priority)</h3>"
                             pareto_df = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                             
                             if not pareto_df.empty:
@@ -428,23 +429,15 @@ if uploaded_file is not None:
                                 top_pareto = pareto_df.head(40)
 
                                 fig2 = go.Figure()
-                                fig2.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (單位)', marker_color='#d73027'))
-                                fig2.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計影響 (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
-
-                                fig2.update_layout(
-                                    plot_bgcolor='white', font=dict(color='black'), showlegend=False,
-                                    xaxis=dict(tickangle=-90, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                                    yaxis=dict(title="超耗量", showline=True, linewidth=1.5, linecolor='black', mirror=True, gridcolor='#999999'),
-                                    yaxis2=dict(title="累計影響 (%)", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=1.5, linecolor='black'),
-                                    height=500, width=800, title=f"Line {line} - Top 40 成本流失最大塗料排行"
-                                )
-                                img2_bytes = fig2.to_image(format="png", engine="kaleido")
-                                doc.add_picture(io.BytesIO(img2_bytes), width=Inches(6.5))
+                                fig2.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量', marker_color='#d73027'))
+                                fig2.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計 ảnh hưởng (%)', yaxis='y2', line=dict(color='#4575b4', width=3), mode='lines+markers'))
+                                fig2.update_layout(title=f"Line {line} - Top 40 成本流失最大塗料排行", height=500, showlegend=False, yaxis2=dict(overlaying='y', side='right', range=[0, 105]))
+                                html_content += f"<div class='chart-box'>{fig2.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
                             else:
-                                doc.add_paragraph("🎉 Tuyệt vời! Line này hiện không có mã sơn nào bị vượt định mức (Over-used).")
+                                html_content += "<p>🎉 Tuyệt vời! Line này hiện không có mã sơn nào bị vượt định mức (Over-used).</p>"
 
-                            # Bieu do 3: Deviation
-                            doc.add_heading('3. 單一塗料：耗用差異絕對值 (Chi tiết chênh lệch hao hụt)', level=2)
+                            # --- Biểu đồ 3: Deviation ---
+                            html_content += "<h3>3. 單一塗料：耗用差異絕對值</h3>"
                             items_per_chart_word = 40
                             num_charts_word = math.ceil(total_paints_line / items_per_chart_word) if items_per_chart_word else 0
                             
@@ -459,34 +452,23 @@ if uploaded_file is not None:
                                     
                                     fig6 = px.bar(df_dev, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#d73027', '節省': '#1a9850'})
                                     fig6.add_hline(y=0, line_dash="solid", line_color="black", line_width=2.5)
-                                    
-                                    fig6.update_layout(
-                                        plot_bgcolor='white', font=dict(color='black'), margin=dict(r=80),
-                                        xaxis=dict(dtick=1, tickangle=-90, categoryorder='array', categoryarray=current_batch, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                                        yaxis=dict(title="差異量 (Δ耗用)", gridcolor='#999999', gridwidth=1, zeroline=False, showline=True, linewidth=1.5, linecolor='black', mirror=True),
-                                        height=450, width=800, title=f"Line {line} - 第 {i+1} 組差異明細", showlegend=False
-                                    )
-                                    img6_bytes = fig6.to_image(format="png", engine="kaleido")
-                                    doc.add_picture(io.BytesIO(img6_bytes), width=Inches(6.5))
-                            else:
-                                doc.add_paragraph("Không có dữ liệu sơn cho Line này.")
+                                    fig6.update_layout(title=f"Line {line} - 第 {i+1} 組差異明細", height=450, showlegend=False)
+                                    html_content += f"<div class='chart-box'>{fig6.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
 
-                        doc_io = io.BytesIO()
-                        doc.save(doc_io)
-                        doc_io.seek(0)
+                        # Đóng thẻ HTML
+                        html_content += """
+                        </div>
+                        </body>
+                        </html>
+                        """
                         
-                        st.sidebar.success("✅ Tạo báo cáo Word thành công!")
+                        st.sidebar.success("✅ Tạo báo cáo siêu tốc thành công!")
                         st.sidebar.download_button(
-                            label="📥 Tải xuống Báo Cáo Word",
-                            data=doc_io,
-                            file_name="BaoCao_HieuSuat_ChinhDien.docx",
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            label="📥 Tải xuống Báo Cáo (Xem trên Web/In PDF)",
+                            data=html_content.encode('utf-8'),
+                            file_name="BaoCao_HieuSuat_ChinhDien.html",
+                            mime="text/html"
                         )
                         
                 except Exception as e:
-                    st.sidebar.error(f"❌ Lỗi khi xuất file: {e}")
-
-    except Exception as e:
-        st.error(f"系統錯誤：{e}")
-else:
-    st.info("👈 請上傳 MES 數據檔案。")
+                    st.sidebar.error(f"❌ Lỗi: {e}")
