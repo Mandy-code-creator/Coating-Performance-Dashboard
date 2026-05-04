@@ -4,9 +4,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import math
-import io
-from docx import Document
-from docx.shared import Inches
 
 # ==========================================
 # [ 0. PAGE CONFIG & CSS ]
@@ -352,8 +349,8 @@ if uploaded_file is not None:
         with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
             st.dataframe(filtered_df)
 
-# ==========================================
-        # [ 4. EXPORT REPORT TO HTML (Không cần cài đặt phức tạp) ]
+        # ==========================================
+        # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("📥 [4] Xuất Báo Cáo Nhanh (HTML)")
@@ -369,7 +366,6 @@ if uploaded_file is not None:
                     else:
                         lines = sorted(df_word['線別'].unique())
                         
-                        # Khởi tạo mã HTML giao diện báo cáo
                         html_content = """
                         <html>
                         <head>
@@ -398,7 +394,7 @@ if uploaded_file is not None:
                             sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                             total_paints_line = len(sort_order_line)
 
-                            # --- Biểu đồ 1: Scatter ---
+                            # --- Chart 1 ---
                             html_content += "<h3>1. 塗料績效燈號全景總覽</h3>"
                             plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                             plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
@@ -414,12 +410,12 @@ if uploaded_file is not None:
                                     size='合計理論耗用', size_max=35, category_orders={"績效等級": labels_global}
                                 )
                                 fig4.add_hline(y=100, line_dash="dash", line_color="red", line_width=2.5)
-                                fig4.update_layout(title=f"Line {line} - 全廠塗料績效分佈圖", height=500, xaxis_title=f"塗料排序序號 (1 Đến {total_paints_line})", yaxis_title="合計績效 (%)")
+                                fig4.update_layout(title=f"Line {line} - 全廠塗料績效分佈圖", height=500, xaxis_title=f"塗料排序序號 (1 到 {total_paints_line})", yaxis_title="合計績效 (%)")
                                 html_content += f"<div class='chart-box'>{fig4.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
                             else:
                                 html_content += "<p>Không đủ dữ liệu hiệu suất để hiển thị biểu đồ này.</p>"
 
-                            # --- Biểu đồ 2: Pareto ---
+                            # --- Chart 2 ---
                             html_content += "<h3>2. 異常超耗柏拉圖 (Pareto Priority)</h3>"
                             pareto_df = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                             
@@ -436,7 +432,7 @@ if uploaded_file is not None:
                             else:
                                 html_content += "<p>🎉 Tuyệt vời! Line này hiện không có mã sơn nào bị vượt định mức (Over-used).</p>"
 
-                            # --- Biểu đồ 3: Deviation ---
+                            # --- Chart 3 ---
                             html_content += "<h3>3. 單一塗料：耗用差異絕對值</h3>"
                             items_per_chart_word = 40
                             num_charts_word = math.ceil(total_paints_line / items_per_chart_word) if items_per_chart_word else 0
@@ -455,7 +451,6 @@ if uploaded_file is not None:
                                     fig6.update_layout(title=f"Line {line} - 第 {i+1} 組差異明細", height=450, showlegend=False)
                                     html_content += f"<div class='chart-box'>{fig6.to_html(full_html=False, include_plotlyjs='cdn')}</div>"
 
-                        # Đóng thẻ HTML
                         html_content += """
                         </div>
                         </body>
@@ -472,3 +467,8 @@ if uploaded_file is not None:
                         
                 except Exception as e:
                     st.sidebar.error(f"❌ Lỗi: {e}")
+
+    except Exception as e: # <--- Đây chính là dòng lệnh bị mất trước đó
+        st.error(f"系統錯誤：{e}")
+else: # <--- VÀ CẢ ĐÂY NỮA
+    st.info("👈 請上傳 MES 數據檔案。")
