@@ -96,10 +96,10 @@ if uploaded_file is not None:
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("🎯 [模式切換] 分析視角")
-        view_mode = st.sidebar.radio("請選擇分析視角：", ["View 1: 全體分析 (All Items)", "View 2: 嚴重超耗分析 (Δ耗用 > 150)"], index=0)
+        view_mode = st.sidebar.radio("請選擇分析視角：", ["View 1: 全體分析 (All Items)", "View 2: 嚴重超耗分析 (Δ耗用 > 200)"], index=0)
 
         if "View 2" in view_mode:
-            df_active = df[df['Δ耗用 (Deviation)'] > 150].copy()
+            df_active = df[df['Δ耗用 (Deviation)'] > 200].copy()
             st.sidebar.warning(f"目前顯示: View 2 (共 {len(df_active)} 支超耗塗料)")
         else:
             df_active = df.copy()
@@ -185,7 +185,7 @@ if uploaded_file is not None:
             if not pareto_df.empty:
                 pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
                 pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
-                top_pareto = pareto_df.head(40)
+                top_pareto = pareto_df.head(20)
                 fig_pareto = go.Figure()
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
@@ -195,7 +195,7 @@ if uploaded_file is not None:
                     xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
                     yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                    height=650, title="<b>Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
+                    height=650, title="<b>Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
                     showlegend=True, margin=dict(b=160)
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
@@ -339,7 +339,7 @@ if uploaded_file is not None:
         
         report_view_sel = st.sidebar.radio(
             "選擇報表內容 (Select Report Content):",
-            ["View 1: All Items", "View 2: Deviation > 500"]
+            ["View 1: All Items", "View 2: Deviation > 200"]
         )
         
         if st.sidebar.button("📄 產生 HTML 報表 (Generate Report)"):
@@ -431,7 +431,7 @@ if uploaded_file is not None:
                         if not pareto_df_exp.empty:
                             pareto_df_exp = pareto_df_exp.sort_values(by='Δ耗用 (Deviation)', ascending=False)
                             pareto_df_exp['累計%'] = pareto_df_exp['Δ耗用 (Deviation)'].cumsum() / pareto_df_exp['Δ耗用 (Deviation)'].sum() * 100
-                            top_pareto_exp = pareto_df_exp.head(40)
+                            top_pareto_exp = pareto_df_exp.head(20)
                             
                             fig_pareto_exp = go.Figure()
                             fig_pareto_exp.add_trace(go.Bar(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
@@ -442,7 +442,7 @@ if uploaded_file is not None:
                                 xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
                                 yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
                                 yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                                height=650, title=f"<b>Line {line} - Top 40 成本流失最大塗料排行 (Top 40 Highest Cost Loss)</b>",
+                                height=650, title=f"<b>Line {line} - Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
                                 showlegend=True, margin=dict(b=160)
                             )
                             html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
