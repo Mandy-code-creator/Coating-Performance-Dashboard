@@ -169,7 +169,7 @@ if uploaded_file is not None:
             
             with col_table:
                 st.markdown("##### 🚨 Top 10 嚴重超耗塗料清單 (Top 10 Over-consumption)")
-                over_used_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].copy()
+                over_used_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 200].copy()
                 if not over_used_df.empty:
                     decision_table = over_used_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
                     show_cols = ['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
