@@ -96,10 +96,10 @@ if uploaded_file is not None:
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("🎯 [模式切換] 分析視角")
-        view_mode = st.sidebar.radio("請選擇分析視角：", ["View 1: 全體分析 (All Items)", "View 2: 嚴重超耗分析 (Δ耗用 > 500)"], index=0)
+        view_mode = st.sidebar.radio("請選擇分析視角：", ["View 1: 全體分析 (All Items)", "View 2: 嚴重超耗分析 (Δ耗用 > 150)"], index=0)
 
         if "View 2" in view_mode:
-            df_active = df[df['Δ耗用 (Deviation)'] > 200].copy()
+            df_active = df[df['Δ耗用 (Deviation)'] > 150].copy()
             st.sidebar.warning(f"目前顯示: View 2 (共 {len(df_active)} 支超耗塗料)")
         else:
             df_active = df.copy()
@@ -348,8 +348,8 @@ if uploaded_file is not None:
                 df_word = df[(df['用途'] == '正面漆') & (df['年月'] == latest_month)].copy()
                 
                 if "View 2" in report_view_sel:
-                    df_word = df_word[df_word['Δ耗用 (Deviation)'] > 500]
-                    report_title_suffix = "(Deviation > 500)"
+                    df_word = df_word[df_word['Δ耗用 (Deviation)'] > 150]
+                    report_title_suffix = "(Deviation > 150)"
                 else:
                     report_title_suffix = "(Full Report)"
 
