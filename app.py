@@ -211,15 +211,20 @@ if uploaded_file is not None:
                 fig.update_layout(**common_layout, height=700, title="<b>異常塗料績效分布 (點越大表示理論用量越高)</b>")
                 st.plotly_chart(fig, use_container_width=True)
 
-        with tab_bar:
-            st.subheader("5. 耗用明細對比 (理論 vs 實際)")
+        with tab_dev:
+            st.subheader("6. 耗用差異絕對值 (Deviation ≥ 500)")
             for i in range(num_charts):
-                batch_df = filtered_df[filtered_df['塗料編號'].isin(sort_order[i*40 : (i+1)*40])]
-                fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(x=batch_df['塗料編號'], y=batch_df['合計理論耗用'], name='理論', marker_color='#34495e'))
-                fig_bar.add_trace(go.Bar(x=batch_df['塗料編號'], y=batch_df['合計實際耗用'], name='實際', marker_color='#3498db'))
-                fig_bar.update_layout(**common_layout, barmode='group', height=500, xaxis=dict(tickangle=-90))
-                st.plotly_chart(fig_bar, use_container_width=True)
+                batch_df = filtered_df[filtered_df['塗料編號'].isin(sort_order[i*40 : (i+1)*40])].copy()
+                batch_df['Color'] = np.where(batch_df['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
+                fig_dev = px.bar(batch_df, x='塗料編號', y='Δ耗用 (Deviation)', color='Color',
+                                 color_discrete_map={'超耗': '#990000', '節省': '#008000'})
+                
+                # 分開設定：先套用共用版面，再設定專屬屬性與 X 軸
+                fig_dev.update_layout(**common_layout)
+                fig_dev.update_layout(height=500)
+                fig_dev.update_xaxes(tickangle=-90) # 單獨更新 X 軸角度，避免衝突
+                
+                st.plotly_chart(fig_dev, use_container_width=True)
 
         with tab_dev:
             st.subheader("6. 耗用差異絕對值 (Deviation ≥ 500)")
