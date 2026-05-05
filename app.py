@@ -65,66 +65,50 @@ if uploaded_file is not None:
                 
         for col in numeric_cols:
             if col in df.columns:
-                df[col] = df[col].astype(str).str.replace(',', '', regex=False)
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
 
         # 核心計算
-        if '合計績效%' not in df.columns or df['合計績效%'].isnull().all() or (df['合計績效%'] == 0).all():
-            df['合計績效%'] = np.where(df['合計實際耗用'] > 0, (df['合計理論耗用'] / df['合計實際耗用']) * 100, np.nan)
-        
         df['Δ耗用 (Deviation)'] = df['合計實際耗用'] - df['合計理論耗用']
+        if '合計績效%' not in df.columns or df['合計績效%'].sum() == 0:
+            df['合計績效%'] = np.where(df['合計實際耗用'] > 0, (df['合計理論耗用'] / df['合計實際耗用']) * 100, 0)
+        
         df['Sort_Group'] = df['塗料編號'].apply(lambda x: 'GE00_01_Group' if any(g in str(x) for g in ['GE00', 'GE01']) else str(x))
 
-        # 績效等級與配色
+        # Phân cấp màu chuẩn
         labels_global = ['🔴 < 80%', '🟠 80% - 90%', '🟢 90% - 100%', '🌱 100% - 110%', '🔵 > 110%']
         perf_color_map = {
             '🔴 < 80%': '#990000', '🟠 80% - 90%': '#FF8C00', '🟢 90% - 100%': '#008000',
             '🌱 100% - 110%': '#ADFF2F', '🔵 > 110%': '#00008B'
         }
-        conds_global = [
-            df['合計績效%'] < 80, 
-            (df['合計績效%'] >= 80) & (df['合計績效%'] < 90), 
-            (df['合計績效%'] >= 90) & (df['合計績效%'] < 100), 
-            (df['合計績效%'] >= 100) & (df['合計績效%'] <= 110),
-            df['合計績效%'] > 110
-        ]
-        df['績效等級'] = np.select(conds_global, labels_global, default='未知')
 
         # ==========================================
-        # 🔥 [模式切換]：View 1 vs View 2
+        # 🔥 [2. MODE SELECTOR]
         # ==========================================
         st.sidebar.markdown("---")
-        st.sidebar.header("🎯 [模式切換] 分析視角")
-        view_mode = st.sidebar.radio(
-            "請選擇分析視角 (Select Analysis View):",
-            ["View 1: All Items", "View 2: Deviation > 500"],
-            index=0
-        )
+        st.sidebar.header("🎯 [2] 分析視角選擇")
+        view_mode = st.sidebar.radio("選擇模式 (View Mode):", ["View 1: All Items", "View 2: Deviation ≥ 500"])
 
         if "View 2" in view_mode:
-            df_active = df[df['Δ耗用 (Deviation)'] > 500].copy()
-            st.sidebar.warning(f"目前處於 View 2：僅分析超耗 > 500 的 {len(df_active)} 支塗料。")
+            df_active = df[df['Δ耗用 (Deviation)'] >= 500].copy()
+            st.sidebar.warning(f"當前模式: 僅分析超耗 ≥ 500 的項目")
         else:
             df_active = df.copy()
 
-        # ==========================================
-        # [ 2. DASHBOARD FILTER ]
-        # ==========================================
-        st.sidebar.header("🔍 [2] 篩選控制台")
+        # Áp dụng Grade cho tập dữ liệu đang chọn
+        conds = [df_active['合計績效%'] < 80, (df_active['合計績效%'] < 90), (df_active['合計績效%'] < 100), (df_active['合計績效%'] <= 110), df_active['合計績效%'] > 110]
+        df_active['績效等級'] = np.select(conds, labels_global, default='未知')
+
+        # Filters
         available_months = sorted(df_active['年月'].unique(), reverse=True)
         sel_month = st.sidebar.multiselect("1. 選擇年月", options=available_months, default=available_months[:1])
         df_s1 = df_active[df_active['年月'].isin(sel_month)]
-        
         sel_line = st.sidebar.multiselect("2. 選擇線別", options=sorted(df_s1['線別'].unique()), default=df_s1['線別'].unique())
-        df_s2 = df_s1[df_s1['線別'].isin(sel_line)]
-        
-        sel_usage = st.sidebar.multiselect("3. 選擇用途", options=sorted(df_s2['用途'].unique()), default=df_s2['用途'].unique())
-        filtered_df = df_s2[df_s2['用途'].isin(sel_usage)]
+        filtered_df = df_s1[df_s1['線別'].isin(sel_line)]
 
         # ==========================================
         # [ 3. VISUALIZATION ] 
         # ==========================================
-        st.markdown(f"### 📈 視覺化分析與根因探討 ({view_mode})")
+        st.markdown(f"### 📈 績效分析結果 ({view_mode})")
         
         sort_order = filtered_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
         total_paints = len(sort_order)
@@ -136,8 +120,7 @@ if uploaded_file is not None:
         ])
 
         common_layout = dict(
-            plot_bgcolor='white',
-            font=dict(color='black', family='Arial', size=13, weight='bold'),
+            plot_bgcolor='white', font=dict(color='black', family='Arial', size=13, weight='bold'),
             yaxis=dict(showline=True, linewidth=2, linecolor='black', mirror=True, gridcolor='#e6e6e6', title_font=dict(weight='bold'))
         )
 
@@ -145,142 +128,132 @@ if uploaded_file is not None:
             if not filtered_df.empty:
                 k1, k2, k3 = st.columns(3)
                 k1.metric("分析區間平均績效", f"{filtered_df['合計績效%'].mean():.2f}%")
-                k2.metric("總差異耗用 (kg)", f"{filtered_df['Δ耗用 (Deviation)'].sum():,.0f}", delta_color="inverse")
+                k2.metric("總差異耗用 (實際 - 理論)", f"{filtered_df['Δ耗用 (Deviation)'].sum():,.0f}", delta_color="inverse")
                 k3.metric("塗料總數", f"{total_paints} 支")
             
             st.divider()
             col_pie, col_table = st.columns([4, 6])
             with col_pie:
                 pie_counts = filtered_df['績效等級'].value_counts().reset_index()
-                fig_pie = px.pie(pie_counts, values='count', names='績效等級', color='績效等級',
-                                 color_discrete_map=perf_color_map, hole=0.4, category_orders={"績效等級": labels_global})
+                fig_pie = px.pie(pie_counts, values='count', names='績效等級', color='績效等級', color_discrete_map=perf_color_map, hole=0.4, category_orders={"績效等級": labels_global})
+                fig_pie.update_traces(textposition='inside', textinfo='percent+label+value', marker=dict(line=dict(color='black', width=2)), textfont_size=14)
                 fig_pie.update_layout(title="<b>塗料績效等級比例</b>")
                 st.plotly_chart(fig_pie, use_container_width=True)
             with col_table:
-                st.markdown("##### 🚨 Top 10 嚴重超耗塗料清單")
-                st.dataframe(filtered_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)[['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']].style.format({'合計績效%': '{:.2f}%', 'Δ耗用 (Deviation)': '{:,.0f}'}), use_container_width=True, hide_index=True)
+                st.markdown("##### 🚨 Top 10 嚴重超耗清單")
+                st.dataframe(filtered_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)[['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']].style.format({'合計績效%': '{:.2f}%', 'Δ耗用 (Deviation)': '{:,.0f}'}), hide_index=True)
 
         with tab_scatter:
-            st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
+            st.subheader(f"4. 塗料績效燈號全景 (共 {total_paints} 支)")
             plot_df = filtered_df[filtered_df['合計理論耗用'] > 0].copy()
             if not plot_df.empty:
                 seq_map = {code: i+1 for i, code in enumerate(sort_order)}
-                plot_df['塗料序號'] = plot_df['塗料編號'].map(seq_map)
-                fig = px.scatter(plot_df, x='塗料序號', y='合計績效%', color='績效等級',
-                                 color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
-                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號')
+                plot_df['Seq'] = plot_df['塗料編號'].map(seq_map)
+                fig_sc = px.scatter(plot_df, x='Seq', y='合計績效%', color='績效等級', color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30, hover_name='塗料編號', category_orders={"績效等級": labels_global})
                 
-                # Cân đối biểu đồ (Y = 120) và nhãn không bị che
-                fig.update_yaxes(range=[plot_df['合計績效%'].min()-5, max(120, plot_df['合計績效%'].max() + 10)])
-                fig.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
-                fig.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
-                fig.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
+                # Chỉnh trục Y = 120 và Label không bị đè
+                fig_sc.update_yaxes(range=[plot_df['合計績效%'].min()-5, 120])
+                fig_sc.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
+                fig_sc.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
+                fig_sc.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                 
-                fig.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=8, bgcolor="rgba(255,255,255,0.7)")
-                fig.add_annotation(x=0.99, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=5, bgcolor="rgba(255,255,255,0.7)")
+                fig_sc.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=8, bgcolor="rgba(255,255,255,0.7)")
+                fig_sc.add_annotation(x=0.99, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=5, bgcolor="rgba(255,255,255,0.7)")
                 
-                fig.update_layout(**common_layout, height=700)
-                st.plotly_chart(fig, use_container_width=True)
+                fig_sc.update_layout(**common_layout, height=700)
+                fig_sc.update_xaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
+                st.plotly_chart(fig_sc, use_container_width=True)
 
         with tab_pareto:
             st.subheader("2. 異常超耗柏拉圖 (Pareto Priority)")
-            pareto_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+            pareto_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index().sort_values(by='Δ耗用 (Deviation)', ascending=False)
             if not pareto_df.empty:
-                pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
-                pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
-                top_pareto = pareto_df.head(40)
-                fig_pareto = go.Figure()
-                fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量', marker_color='#990000'))
-                fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計%', yaxis='y2', line=dict(color='#00008B', width=3)))
-                fig_pareto.update_layout(**common_layout)
-                fig_pareto.update_layout(height=650, yaxis2=dict(title="累計%", overlaying='y', side='right', range=[0, 105]), title="<b>Top 40 成本流失最大排行</b>")
-                fig_pareto.update_xaxes(tickangle=-90)
-                st.plotly_chart(fig_pareto, use_container_width=True)
+                pareto_df['Cum%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
+                top_p = pareto_df.head(40)
+                fig_p = go.Figure()
+                fig_p.add_trace(go.Bar(x=top_p['塗料編號'], y=top_p['Δ耗用 (Deviation)'], marker_color='#990000', name='超耗量'))
+                fig_p.add_trace(go.Scatter(x=top_p['塗料編號'], y=top_p['Cum%'], yaxis='y2', line=dict(color='#00008B', width=3), name='累計%'))
+                fig_p.update_layout(**common_layout, height=650, yaxis2=dict(overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'))
+                fig_p.update_xaxes(tickangle=-90, showline=True, linewidth=2, linecolor='black')
+                st.plotly_chart(fig_p, use_container_width=True)
 
         with tab_bar:
             for i in range(num_charts):
                 batch_df = filtered_df[filtered_df['塗料編號'].isin(sort_order[i*40 : (i+1)*40])]
-                fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(x=batch_df['塗料編號'], y=batch_df['合計理論耗用'], name='理論', marker_color='#34495e'))
-                fig_bar.add_trace(go.Bar(x=batch_df['塗料編號'], y=batch_df['合計實際耗用'], name='實際', marker_color='#3498db'))
-                fig_bar.update_layout(**common_layout, barmode='group', height=550)
-                fig_bar.update_xaxes(tickangle=-90)
-                st.plotly_chart(fig_bar, use_container_width=True)
+                fig_b = go.Figure()
+                fig_b.add_trace(go.Bar(x=batch_df['塗料編號'], y=batch_df['合計理論耗用'], name='理論', marker_color='#34495e', marker_line_color='black', marker_line_width=1.5))
+                fig_b.add_trace(go.Bar(x=batch_df['塗料編號'], y=batch_df['合計實際耗用'], name='實際', marker_color='#3498db', marker_line_color='black', marker_line_width=1.5))
+                fig_b.update_layout(**common_layout, barmode='group', height=550)
+                fig_b.update_xaxes(tickangle=-90, showline=True, linewidth=2, linecolor='black')
+                st.plotly_chart(fig_b, use_container_width=True)
 
         with tab_dev:
             for i in range(num_charts):
                 batch_df = filtered_df[filtered_df['塗料編號'].isin(sort_order[i*40 : (i+1)*40])].copy()
                 batch_df['Color'] = np.where(batch_df['Δ耗用 (Deviation)'] > 0, '超耗', '節省')
-                fig_dev = px.bar(batch_df, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#990000', '節省': '#008000'})
-                fig_dev.update_layout(**common_layout, height=550)
-                fig_dev.update_xaxes(tickangle=-90)
-                st.plotly_chart(fig_dev, use_container_width=True)
+                fig_d = px.bar(batch_df, x='塗料編號', y='Δ耗用 (Deviation)', color='Color', color_discrete_map={'超耗': '#990000', '節省': '#008000'})
+                fig_d.add_hline(y=0, line_color="black", line_width=2)
+                fig_d.update_layout(**common_layout, height=550)
+                fig_d.update_xaxes(tickangle=-90, showline=True, linewidth=2, linecolor='black')
+                st.plotly_chart(fig_d, use_container_width=True)
+
+        with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
+            st.dataframe(filtered_df)
 
         # ==========================================
-        # [ 4. EXPORT REPORT TO HTML ] - KHÔI PHỤC LOGIC TRÌNH BÀY GỐC
+        # [ 4. HTML EXPORT ] - MIRRORING APP DESIGN
         # ==========================================
         st.sidebar.markdown("---")
-        st.sidebar.header("📥 [4] 快速匯出報表 (HTML Export)")
-        report_view_sel = st.sidebar.radio("選擇匯出內容:", ["View 1: All Items", "View 2: Deviation > 500"])
-        
-        if st.sidebar.button("📄 產生 HTML 報表 (Generate Report)"):
+        st.sidebar.header("📥 [4] 快速匯出報表")
+        if st.sidebar.button(f"📄 產生當前視角報表 ({view_mode})"):
             try:
-                latest_month = df['年月'].dropna().max()
-                df_word = df[(df['用途'] == '正面漆') & (df['年月'] == latest_month)].copy()
-                if "View 2" in report_view_sel:
-                    df_word = df_word[df_word['Δ耗用 (Deviation)'] > 500]
-                
-                if df_word.empty:
-                    st.sidebar.error("❌ 找不到數據。")
-                else:
-                    lines = sorted(df_word['線別'].unique())
-                    html_content = f"""
-                    <html><head><meta charset='UTF-8'><style>
-                        body {{ font-family: Segoe UI, sans-serif; padding: 20px; background: #f4f7f6; }}
-                        .container {{ background: white; padding: 30px; border-radius: 10px; max-width: 1200px; margin: auto; }}
-                        h1 {{ text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; }}
-                        h2 {{ color: #e67e22; border-bottom: 1px dashed #ccc; }}
-                        .styled-table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
-                        .styled-table thead tr {{ background: #009879; color: white; }}
-                        .styled-table th, .styled-table td {{ padding: 10px; border: 1px solid #ddd; text-align: center; }}
-                    </style></head><body><div class='container'>
-                        <h1>📊 塗料生產績效報告 - {latest_month} ({report_view_sel})</h1>
-                    """
-                    for line in lines:
-                        html_content += f"<h2>🏭 線別: {line}</h2>"
-                        df_line = df_word[df_word['線別'] == line].copy()
-                        
-                        # Biểu đồ Scatter (Cân đối Y = 120)
-                        plot_df_line = df_line[df_line['合計理論耗用'] > 0].copy()
-                        if not plot_df_line.empty:
-                            fig_sc_exp = px.scatter(plot_df_line, x='塗料編號', y='合計績效%', color='績效等級', color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30)
-                            fig_sc_exp.update_yaxes(range=[plot_df_line['合計績效%'].min()-5, 120])
-                            fig_sc_exp.add_hline(y=100, line_dash="dash", line_color="red")
-                            fig_sc_exp.update_layout(plot_bgcolor='white', height=600)
-                            html_content += fig_sc_exp.to_html(full_html=False, include_plotlyjs='cdn')
-                        
-                        # Biểu đồ Pareto (Khôi phục logic Bar + Scatter Line)
-                        pareto_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].sort_values(by='Δ耗用 (Deviation)', ascending=False)
-                        if not pareto_exp.empty:
-                            pareto_exp['Cum%'] = pareto_exp['Δ耗用 (Deviation)'].cumsum() / pareto_exp['Δ耗用 (Deviation)'].sum() * 100
-                            fig_p_exp = go.Figure()
-                            fig_p_exp.add_trace(go.Bar(x=pareto_exp['塗料編號'], y=pareto_exp['Δ耗用 (Deviation)'], marker_color='#990000', name='超耗量'))
-                            fig_p_exp.add_trace(go.Scatter(x=pareto_exp['塗料編號'], y=pareto_exp['Cum%'], yaxis='y2', line=dict(color='#00008B', width=3), name='累計%'))
-                            fig_p_exp.update_layout(plot_bgcolor='white', height=600, yaxis2=dict(overlaying='y', side='right', range=[0, 105]))
-                            html_content += "<h3>🚨 異常超耗柏拉圖</h3>" + fig_p_exp.to_html(full_html=False, include_plotlyjs='cdn')
-
-                        # Bảng Top 10 (Khôi phục các cột ban đầu)
-                        html_content += "<h3>📋 Top 10 嚴重超耗清單</h3><table class='styled-table'><thead><tr><th>塗料編號</th><th>油漆廠商</th><th>線別</th><th>合計績效%</th><th>超耗量 (kg)</th></tr></thead><tbody>"
-                        for _, row in df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10).iterrows():
-                            html_content += f"<tr><td>{row['塗料編號']}</td><td>{row['油漆廠商']}</td><td>{row['線別']}</td><td>{row['合計績效%']:.2f}%</td><td>{row['Δ耗用 (Deviation)']:,.0f}</td></tr>"
-                        html_content += "</tbody></table>"
+                latest_month = filtered_df['年月'].max()
+                html_content = f"""
+                <html><head><meta charset='UTF-8'><style>
+                    body {{ font-family: Segoe UI, sans-serif; padding: 20px; background: #f4f7f6; }}
+                    .container {{ background: white; padding: 30px; border-radius: 10px; max-width: 1200px; margin: auto; }}
+                    h1 {{ text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; }}
+                    h2 {{ color: #e67e22; border-bottom: 1px dashed #ccc; padding: 5px; }}
+                    .styled-table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+                    .styled-table thead tr {{ background: #009879; color: white; }}
+                    .styled-table th, .styled-table td {{ padding: 10px; border: 1px solid #ddd; text-align: center; }}
+                </style></head><body><div class='container'>
+                    <h1>📊 塗料生產績效報告 - {latest_month}</h1>
+                    <p style='text-align:center;'><b>模式: {view_mode}</b></p>
+                """
+                for line in sorted(filtered_df['線別'].unique()):
+                    html_content += f"<h2>🏭 線別: {line}</h2>"
+                    df_line = filtered_df[filtered_df['線別'] == line].copy()
                     
-                    html_content += "</div></body></html>"
-                    st.sidebar.download_button("📥 下載報表", data=html_content.encode('utf-8'), file_name=f"Report_{latest_month}.html", mime="text/html")
+                    # Mirror Scatter Plot
+                    fig_sc_exp = px.scatter(df_line, x='塗料編號', y='合計績效%', color='績效等級', color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30)
+                    fig_sc_exp.update_yaxes(range=[df_line['合計績效%'].min()-5, 120])
+                    fig_sc_exp.add_hline(y=100, line_dash="dash", line_color="red")
+                    fig_sc_exp.update_layout(plot_bgcolor='white', height=600)
+                    html_content += fig_sc_exp.to_html(full_html=False, include_plotlyjs='cdn')
+                    
+                    # Mirror Pareto Plot
+                    pareto_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].sort_values(by='Δ耗用 (Deviation)', ascending=False).head(40)
+                    if not pareto_exp.empty:
+                        pareto_exp['Cum%'] = pareto_exp['Δ耗用 (Deviation)'].cumsum() / pareto_exp['Δ耗用 (Deviation)'].sum() * 100
+                        fig_p_exp = go.Figure()
+                        fig_p_exp.add_trace(go.Bar(x=pareto_exp['塗料編號'], y=pareto_exp['Δ耗用 (Deviation)'], marker_color='#990000', name='超耗'))
+                        fig_p_exp.add_trace(go.Scatter(x=pareto_exp['塗料編號'], y=pareto_exp['Cum%'], yaxis='y2', line=dict(color='#00008B', width=3), name='累計%'))
+                        fig_p_exp.update_layout(plot_bgcolor='white', height=600, yaxis2=dict(overlaying='y', side='right', range=[0, 105]))
+                        html_content += "<h3>🚨 異常超耗柏拉圖</h3>" + fig_p_exp.to_html(full_html=False, include_plotlyjs='cdn')
+
+                    # Top 10 Table
+                    html_content += "<h3>📋 嚴重超耗清單 (Top 10)</h3><table class='styled-table'><thead><tr><th>塗料編號</th><th>績效%</th><th>超耗量 (kg)</th></tr></thead><tbody>"
+                    for _, row in df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10).iterrows():
+                        html_content += f"<tr><td>{row['塗料編號']}</td><td>{row['合計績效%']:.2f}%</td><td>{row['Δ耗用 (Deviation)']:,.0f}</td></tr>"
+                    html_content += "</tbody></table>"
+
+                html_content += "</div></body></html>"
+                st.sidebar.download_button("📥 下載報表", data=html_content.encode('utf-8'), file_name=f"Performance_Report_{latest_month}.html", mime="text/html")
             except Exception as e:
                 st.sidebar.error(f"Error: {e}")
 
     except Exception as e:
-        st.error(f"System Error：{e}")
+        st.error(f"System Error: {e}")
 else:
-    st.info("👈 請上傳 MES 數據檔案。")
+    st.info("👈 請上傳 MES 數據檔案以開始分析。")
