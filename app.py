@@ -451,7 +451,7 @@ if uploaded_file is not None:
 
                         # --- 3. TOP 10 TABLE (Export Version) ---
                         html_content += f"<h3>📋 Top 10 嚴重超耗塗料清單 (Top 10 Over-consumption Table)</h3>"
-                        over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 0].copy()
+                        over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 200].copy()
                         if not over_used_df_line.empty:
                             top10_table = over_used_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
                             show_cols = ['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
