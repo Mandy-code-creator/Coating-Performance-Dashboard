@@ -99,7 +99,7 @@ if uploaded_file is not None:
         view_mode = st.sidebar.radio("請選擇分析視角：", ["View 1: 全體分析 (All Items)", "View 2: 嚴重超耗分析 (Δ耗用 > 500)"], index=0)
 
         if "View 2" in view_mode:
-            df_active = df[df['Δ耗用 (Deviation)'] > 500].copy()
+            df_active = df[df['Δ耗用 (Deviation)'] > 200].copy()
             st.sidebar.warning(f"目前顯示: View 2 (共 {len(df_active)} 支超耗塗料)")
         else:
             df_active = df.copy()
