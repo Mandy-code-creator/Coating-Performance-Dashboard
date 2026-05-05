@@ -349,7 +349,7 @@ if uploaded_file is not None:
                 
                 if "View 2" in report_view_sel:
                     df_word = df_word[df_word['Δ耗用 (Deviation)'] > 150]
-                    report_title_suffix = "(Deviation > 150)"
+                    report_title_suffix = "(Deviation > 200)"
                 else:
                     report_title_suffix = "(Full Report)"
 
