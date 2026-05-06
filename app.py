@@ -345,7 +345,10 @@ if uploaded_file is not None:
         if st.sidebar.button("📄 產生 HTML 報表 (Generate Report)"):
             try:
                 latest_month = df['年月'].dropna().max()
-                df_word = df[(df['用途'] == '正面漆') & (df['年月'] == latest_month)].copy()
+                # Khai báo danh sách các loại sơn sếp muốn kết hợp
+                target_usages = ['正面漆', '正底漆', '背面漆'] 
+                # Dùng hàm .isin() để lọc tất cả các loại có trong danh sách
+                df_word = df[(df['用途'].isin(target_usages)) & (df['年月'] == latest_month)].copy()
                 
                 if "View 2" in report_view_sel:
                     df_word = df_word[df_word['Δ耗用 (Deviation)'] > 150]
