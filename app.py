@@ -400,6 +400,8 @@ if uploaded_file is not None:
                             
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
+                                symbol='用途', # 🔥 THÊM DÒNG NÀY: Phân biệt hình dạng (Tròn/Vuông/Tam giác) theo loại sơn
+                                hover_data={'用途': True, '合計績效%': True}, # 🔥 THÊM DÒNG NÀY: Hiện loại sơn khi rê chuột
                                 color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
@@ -457,9 +459,11 @@ if uploaded_file is not None:
                         over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 200].copy()
                         if not over_used_df_line.empty:
                             top10_table = over_used_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
-                            show_cols = ['塗料編號', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
+                            # 🔥 Thêm '用途' vào danh sách cột hiển thị
+                            show_cols = ['塗料編號', '用途', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
                             top10_table = top10_table[show_cols]
-                            top10_table.columns = ['塗料編號 (Paint ID)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
+                            # 🔥 Đổi tên cột tương ứng
+                            top10_table.columns = ['塗料編號 (Paint ID)', '用途 (Usage)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
                             
                             top10_table['合計績效 (%)'] = top10_table['合計績效 (%)'].apply(lambda x: f"{x:.2f}%")
                             top10_table['🔥 超耗量 (Over-used)'] = top10_table['🔥 超耗量 (Over-used)'].apply(lambda x: f"{x:,.0f}")
