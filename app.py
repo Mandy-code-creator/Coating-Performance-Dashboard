@@ -133,7 +133,6 @@ if uploaded_file is not None:
             "🎯 [全景] 績效燈號", "📊 [明細] 耗用對比", "📉 [明細] 差異分析"
         ])
 
-        # Bỏ xaxis khỏi common_layout để tránh lỗi đè tham số, sẽ set trực tiếp ở mỗi biểu đồ
         common_layout = dict(
             plot_bgcolor='white',
             font=dict(color='black', family='Arial', size=13, weight='bold'),
@@ -260,7 +259,6 @@ if uploaded_file is not None:
                         hover_name='塗料編號'
                     )
                     
-                    # Cân đối Y=120
                     y_min = plot_df['合計績效%'].min() - 5
                     y_max = max(120, plot_df['合計績效%'].max() + 5)
                     fig.update_yaxes(range=[y_min, y_max])
@@ -269,7 +267,6 @@ if uploaded_file is not None:
                     fig.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
                     fig.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                     
-                    # Label nền trắng chống đè
                     fig.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=8, font=dict(color="red", size=16, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
                     fig.add_annotation(x=0.99, y=90, xref="paper", yref="y", text="<b>90% Bound</b>", showarrow=False, xanchor="right", yanchor="top", yshift=-5, font=dict(color="deepskyblue", size=13, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
                     fig.add_annotation(x=0.99, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=5, font=dict(color="deepskyblue", size=13, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
@@ -345,7 +342,6 @@ if uploaded_file is not None:
         if st.sidebar.button("📄 產生 HTML 報表 (Generate Report)"):
             try:
                 latest_month = df['年月'].dropna().max()
-                # CHỈ LẤY ĐÚNG 2 LOẠI THEO YÊU CẦU CỦA SẾP
                 target_usages = ['正面漆', '背面漆'] 
                 df_word = df[(df['用途'].isin(target_usages)) & (df['年月'] == latest_month)].copy()
                 
@@ -370,6 +366,14 @@ if uploaded_file is not None:
                             h1 {{ color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
                             h2 {{ color: #e67e22; margin-top: 50px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }}
                             h3 {{ color: #34495e; margin-top: 30px; }}
+                            
+                            /* 🔥 加入防切割 CSS */
+                            .keep-together {{
+                                page-break-inside: avoid;
+                                break-inside: avoid;
+                                margin-bottom: 20px;
+                            }}
+
                             .styled-table {{ border-collapse: collapse; margin: 25px 0; font-size: 0.9em; font-family: sans-serif; width: 100%; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15); }}
                             .styled-table thead tr {{ background-color: #009879; color: #ffffff; text-align: center; }}
                             .styled-table th, .styled-table td {{ padding: 12px 15px; border: 1px solid #ddd; text-align: center; }}
@@ -390,7 +394,7 @@ if uploaded_file is not None:
                         sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                         total_paints_line = len(sort_order_line)
                         
-                        # --- 1. SCATTER PLOT (Export Version) - CHUẨN HOÁ GIỐNG APP Y HỆT ---
+                        # --- 1. SCATTER PLOT (Export Version) ---
                         plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                         plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                         if not plot_df_line.empty:
@@ -399,13 +403,12 @@ if uploaded_file is not None:
                             
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
-                                symbol='用途', # 🔥 THÊM DÒNG NÀY: Phân biệt hình dạng (Tròn/Vuông/Tam giác) theo loại sơn
-                                hover_data={'用途': True, '合計績效%': True}, # 🔥 THÊM DÒNG NÀY: Hiện loại sơn khi rê chuột
+                                symbol='用途', 
+                                hover_data={'用途': True, '合計績效%': True}, 
                                 color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
                             
-                            # Y-axis 120
                             y_min_exp = plot_df_line['合計績效%'].min() - 5
                             y_max_exp = max(120, plot_df_line['合計績效%'].max() + 5)
                             fig_line.update_yaxes(range=[y_min_exp, y_max_exp])
@@ -414,7 +417,6 @@ if uploaded_file is not None:
                             fig_line.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
                             fig_line.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                             
-                            # Label nền trắng chống đè
                             fig_line.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=8, font=dict(color="red", size=16, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
                             fig_line.add_annotation(x=0.99, y=90, xref="paper", yref="y", text="<b>90% Bound</b>", showarrow=False, xanchor="right", yanchor="top", yshift=-5, font=dict(color="deepskyblue", size=13, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
                             fig_line.add_annotation(x=0.99, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=5, font=dict(color="deepskyblue", size=13, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
@@ -427,9 +429,14 @@ if uploaded_file is not None:
                                 yaxis_title="<b>合計績效 (%)</b>"
                             )
                             fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
+                            
+                            # 🔥 加入 div keep-together
+                            html_content += "<div class='keep-together'>"
                             html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
+                            html_content += "</div>"
                         
                         # --- 2. PARETO CHART (Export Version) ---
+                        html_content += "<div class='keep-together'>"
                         html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                         pareto_df_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                         if not pareto_df_exp.empty:
@@ -449,19 +456,21 @@ if uploaded_file is not None:
                                 height=650, title=f"<b>Line {line} - Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
                                 showlegend=True, margin=dict(b=160)
                             )
+                            # 🔥 將圖表放進 div 後關閉
                             html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
+                            html_content += "</div>"
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
+                            html_content += "</div>"
 
                         # --- 3. TOP 10 TABLE (Export Version) ---
+                        html_content += "<div class='keep-together'>"
                         html_content += f"<h3>📋 Top 10 嚴重超耗塗料清單 (Top 10 Over-consumption Table)</h3>"
                         over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 200].copy()
                         if not over_used_df_line.empty:
                             top10_table = over_used_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
-                            # 🔥 Thêm '用途' vào danh sách cột hiển thị
                             show_cols = ['塗料編號', '用途', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
                             top10_table = top10_table[show_cols]
-                            # 🔥 Đổi tên cột tương ứng
                             top10_table.columns = ['塗料編號 (Paint ID)', '用途 (Usage)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
                             
                             top10_table['合計績效 (%)'] = top10_table['合計績效 (%)'].apply(lambda x: f"{x:.2f}%")
@@ -469,8 +478,10 @@ if uploaded_file is not None:
                             
                             html_table = top10_table.to_html(index=False, classes='styled-table', escape=False)
                             html_content += html_table
+                            html_content += "</div>"
                         else:
-                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
+                            html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
+                            html_content += "</div>"
                         
                     html_content += "</div></body></html>"
                     st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{latest_month}.html", mime="text/html")
