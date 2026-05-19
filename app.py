@@ -92,7 +92,7 @@ if uploaded_file is not None:
         df['績效等級'] = np.select(conds_global, labels_global, default='未知')
 
         # ==========================================
-        # 🔥 [VIEW SWITCH] - CHỌN VIEW 1 HOẶC VIEW 2
+        # 🔥 [VIEW SWITCH]
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("🎯 [模式切換] 分析視角")
@@ -238,7 +238,7 @@ if uploaded_file is not None:
             
             st.info("""
             💡 **圖表說明 (How to read this chart):**
-            * **X軸 (X-Axis):** 塗料排序序號 (Paint Sequence No.).
+            * **X軸 (X-Axis):** 項次.
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
             * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption).
             * 🚨 **Top 5 改善名單:** 自動偵測「績效低於90%」且「耗用差異最大」的前五支塗料 (Chỉ hiển thị các mã < 90%).
@@ -263,12 +263,13 @@ if uploaded_file is not None:
                     needs_improvement_df = plot_df[plot_df['合計績效%'] < 90]
                     top5_dev = needs_improvement_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                     
-                    # Vẽ mũi tên đỏ chỉ thẳng vào bong bóng trên biểu đồ
+                    # Vẽ mũi tên đỏ chỉ thẳng vào bong bóng trên biểu đồ (Đã sửa theo yêu cầu Sếp: hiển thị 4 ký tự cuối)
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
+                        short_code = str(row['塗料編號'])[-4:]  # Lấy 4 ký tự cuối
                         fig.add_annotation(
                             x=row['塗料序號'],       
                             y=row['合計績效%'],       
-                            text=f"🚨 Top {rank}",  
+                            text=f"🚨 {short_code}",  
                             showarrow=True,          
                             arrowhead=3,             
                             arrowsize=1.5,           
@@ -283,18 +284,17 @@ if uploaded_file is not None:
                             borderpad=3
                         )
                     
-                    # Tạo nhãn chuỗi HTML cho bảng danh sách Top 5 bên phải biểu đồ
+                    # Tạo nhãn chuỗi HTML cho bảng danh sách Top 5 (Đã xóa tiêu đề và "Top X")
                     if not top5_dev.empty:
-                        top5_text = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
+                        top5_text = ""
                         for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
-                            top5_text += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
-                            top5_text += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
+                            top5_text += f"<span style='font-size:12px; color:#000'><b>{row['塗料編號']}</b></span><br>"
                             top5_text += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
                         top5_text = top5_text[:-8]
                     else:
                         top5_text = "<span style='color:#008000; font-size:14px'><b>🎉 績效良好<br>無需改善</b></span>"
 
-                    # Nhúng thẳng nhãn bảng Top 5 vào layout biểu đồ Plotly
+                    # Nhúng thẳng nhãn bảng vào layout biểu đồ Plotly
                     fig.add_annotation(
                         x=1.015, y=0.75,  
                         xref="paper", yref="paper",
@@ -324,7 +324,8 @@ if uploaded_file is not None:
                     fig.update_layout(
                         height=700, 
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
-                        xaxis=dict(title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints} 支 (Total Items)</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
+                        # Đã sửa lại trục X thành 項次 theo yêu cầu Sếp
+                        xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
                         yaxis_title="<b>合計績效 (%)</b>",
                         margin=dict(r=150) # Tăng biên phải để chứa bảng dữ liệu không bị lấp
                     )
@@ -463,10 +464,11 @@ if uploaded_file is not None:
                             top5_dev_line = needs_improve_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                             
                             for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
+                                short_code = str(row['塗料編號'])[-4:]
                                 fig_line.add_annotation(
                                     x=row['塗料序號'],       
                                     y=row['合計績效%'],       
-                                    text=f"🚨 Top {rank}",  
+                                    text=f"🚨 {short_code}",  
                                     showarrow=True,          
                                     arrowhead=3,             
                                     arrowsize=1.5,           
@@ -482,10 +484,9 @@ if uploaded_file is not None:
                                 )
                             
                             if not top5_dev_line.empty:
-                                top5_text_exp = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
+                                top5_text_exp = ""
                                 for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
-                                    top5_text_exp += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
-                                    top5_text_exp += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
+                                    top5_text_exp += f"<span style='font-size:12px; color:#000'><b>{row['塗料編號']}</b></span><br>"
                                     top5_text_exp += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
                                 top5_text_exp = top5_text_exp[:-8]
                             else:
@@ -520,7 +521,7 @@ if uploaded_file is not None:
                             fig_line.update_layout(
                                 height=700,
                                 title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>",
-                                xaxis=dict(title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints_line} 支 (Total Items)</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')), 
+                                xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')), 
                                 yaxis_title="<b>合計績效 (%)</b>",
                                 margin=dict(r=150)
                             )
