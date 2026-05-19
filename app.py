@@ -319,21 +319,17 @@ if uploaded_file is not None:
                         # Đẩy danh sách xuống ngang tầm với phần dữ liệu
                         st.markdown("<div style='margin-top: 80px;'></div>", unsafe_allow_html=True)
                         
-                        # Tạo bảng danh sách gọn gàng bằng HTML/CSS giống Legend
-                        list_html = """
-                        <div style='border: 1px solid #e6e6e6; border-radius: 5px; padding: 10px; background-color: #f9fbfd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-family: Arial, sans-serif;'>
-                            <div style='text-align: center; color: #990000; font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-bottom: 10px;'>
-                                🚨 Top 5<br>改善名單
-                            </div>
-                        """
+                        # Ép chuỗi HTML sát lề trái để Streamlit không hiểu nhầm là Code Block
+                        list_html = "<div style='border: 1px solid #e6e6e6; border-radius: 5px; padding: 10px; background-color: #f9fbfd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-family: Arial, sans-serif;'>"
+                        list_html += "<div style='text-align: center; color: #990000; font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-bottom: 10px;'>🚨 Top 5<br>改善名單</div>"
+                        
                         for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
-                            list_html += f"""
-                            <div style='margin-bottom: 10px; line-height: 1.4;'>
-                                <span style='font-size: 12px; font-weight: bold; color: #333;'>Top {rank}</span><br>
-                                <span style='font-size: 11px; color: #000;'>{row['塗料編號']}</span><br>
-                                <span style='font-size: 12px; font-weight: bold; color: #990000;'>Δ {row['Δ耗用 (Deviation)']:,.0f}</span>
-                            </div>
-                            """
+                            list_html += "<div style='margin-bottom: 10px; line-height: 1.4;'>"
+                            list_html += f"<span style='font-size: 12px; font-weight: bold; color: #333;'>Top {rank}</span><br>"
+                            list_html += f"<span style='font-size: 11px; color: #000;'>{row['塗料編號']}</span><br>"
+                            list_html += f"<span style='font-size: 12px; font-weight: bold; color: #990000;'>Δ {row['Δ耗用 (Deviation)']:,.0f}</span>"
+                            list_html += "</div>"
+                            
                         list_html += "</div>"
                         
                         st.markdown(list_html, unsafe_allow_html=True)
