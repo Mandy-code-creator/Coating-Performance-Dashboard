@@ -233,6 +233,9 @@ if uploaded_file is not None:
                                                yaxis_title="<b>績效 (%)</b>", showlegend=False)
                         st.plotly_chart(fig_box2, use_container_width=True)
 
+        # ========================================================
+        # 🎯 TRỰC QUAN HÓA TAB_SCATTER (ĐÃ CÓ MŨI TÊN & DANH SÁCH BÊN PHẢI)
+        # ========================================================
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
             
@@ -242,7 +245,7 @@ if uploaded_file is not None:
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
             * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption). 圓點越大，系統設定上的預期耗用量越高.
             * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線；**90% & 110%** 為深天藍色點線.
-            * 🚨 **Top 5:** 自動偵測全廠耗用差異 (Deviation) 最大的前五支塗料並標記 mũi tên.
+            * 🚨 **Top 5 改善名單:** Hệ thống tự động xác định 5 mã sơn có lượng hao hụt thực tế lớn nhất để cắm mũi tên và liệt kê danh sách ở bên phải.
             """)
             
             if not filtered_df.empty:
@@ -260,13 +263,10 @@ if uploaded_file is not None:
                         hover_name='塗料編號'
                     )
 
-                    # ========================================================
-                    # 👇 THÊM ĐOẠN CODE NÀY ĐỂ VẼ MŨI TÊN CHỈ VÀO TOP 5
-                    # ========================================================
-                    # Lấy ra Top 5 mã có độ hao hụt (Deviation) lớn nhất
+                    # Tìm kiếm tự động danh sách 5 mã sơn hao hụt nặng nhất
                     top5_dev = plot_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                     
-                    # Gắn mũi tên chỉ vào từng điểm trong Top 5
+                    # Vẽ mũi tên đỏ chỉ thẳng vào bong bóng trên biểu đồ
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
                         fig.add_annotation(
                             x=row['塗料序號'],       
@@ -285,7 +285,6 @@ if uploaded_file is not None:
                             borderwidth=1,
                             borderpad=3
                         )
-                    # ========================================================
                     
                     y_min = plot_df['合計績效%'].min() - 5
                     y_max = max(120, plot_df['合計績效%'].max() + 5)
@@ -304,10 +303,24 @@ if uploaded_file is not None:
                         height=700, 
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
                         xaxis=dict(title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints} 支 (Total Items)</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
-                        yaxis_title="<b>合計績效 (%)</b>"
+                        yaxis_title="<b>合計績效 (%)</b>",
+                        margin=dict(r=20)
                     )
                     fig.update_traces(marker=dict(line=dict(width=1, color='black')))
-                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Thiết lập bố cục cột: Biểu đồ chiếm 85% diện tích bên trái, danh sách chiếm 15% bên phải
+                    col_chart, col_list = st.columns([8.5, 1.5])
+                    
+                    with col_chart:
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                    with col_list:
+                        st.markdown("<div style='margin-top: 80px;'></div>", unsafe_allow_html=True)
+                        st.markdown("<h4 style='color: #990000; text-align: center;'>🚨 Top 5<br>改善名單</h4>", unsafe_allow_html=True)
+                        
+                        # Vòng lặp xuất các khối thông tin (Label Card) của Top 5 mã sơn cần cải thiện
+                        for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
+                            st.error(f"**Top {rank}**\n\n**{row['塗料編號']}**\n\nΔ {row['Δ耗用 (Deviation)']:,.0f}")
 
         with tab_bar:
             st.subheader("5. 單一塗料：理論耗用 vs 實際耗用明細")
@@ -357,7 +370,7 @@ if uploaded_file is not None:
             st.dataframe(filtered_df)
 
         # ==========================================
-        # [ 4. EXPORT REPORT TO HTML ] - ĐỒNG BỘ 100% VỚI APP
+        # [ 4. EXPORT REPORT TO HTML ] 
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("📥 [4] 快速匯出報表 (HTML Export)")
@@ -395,7 +408,6 @@ if uploaded_file is not None:
                             h2 {{ color: #e67e22; margin-top: 50px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }}
                             h3 {{ color: #34495e; margin-top: 30px; }}
                             
-                            /* 🔥 加入防切割 CSS */
                             .keep-together {{
                                 page-break-inside: avoid;
                                 break-inside: avoid;
@@ -437,9 +449,7 @@ if uploaded_file is not None:
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
 
-                            # ========================================================
-                            # 👇 THÊM ĐOẠN CODE NÀY ĐỂ VẼ MŨI TÊN CHỈ VÀO TOP 5 (CHO BẢN XUẤT HTML)
-                            # ========================================================
+                            # Tích hợp thêm mũi tên chỉ định Top 5 cho phiên bản xuất HTML Report
                             top5_dev_line = plot_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                             for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
                                 fig_line.add_annotation(
@@ -459,7 +469,6 @@ if uploaded_file is not None:
                                     borderwidth=1,
                                     borderpad=3
                                 )
-                            # ========================================================
                             
                             y_min_exp = plot_df_line['合計績效%'].min() - 5
                             y_max_exp = max(120, plot_df_line['合計績效%'].max() + 5)
@@ -482,7 +491,6 @@ if uploaded_file is not None:
                             )
                             fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                             
-                            # 🔥 加入 div keep-together
                             html_content += "<div class='keep-together'>"
                             html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                             html_content += "</div>"
@@ -508,7 +516,6 @@ if uploaded_file is not None:
                                 height=650, title=f"<b>Line {line} - Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
                                 showlegend=True, margin=dict(b=160)
                             )
-                            # 🔥 將圖表放進 div 後關閉
                             html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
                             html_content += "</div>"
                         else:
