@@ -233,10 +233,6 @@ if uploaded_file is not None:
                                                yaxis_title="<b>績效 (%)</b>", showlegend=False)
                         st.plotly_chart(fig_box2, use_container_width=True)
 
-        # ========================================================
-        # ========================================================
-        # 🎯 TRỰC QUAN HÓA TAB_SCATTER (ĐÃ CÓ MŨI TÊN & DANH SÁCH GỌN GÀNG)
-        # ========================================================
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
             
@@ -246,7 +242,7 @@ if uploaded_file is not None:
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
             * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption). 圓點越大，系統設定上的預期耗用量越高.
             * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線；**90% & 110%** 為深天藍色點線.
-            * 🚨 **Top 5 改善名單:** 自動偵測耗用差異最大的前五支塗料.
+            * 🚨 **Top 5 改善名單:** 系統會自動找出耗損最大的5支塗料，並在右側列出明細。
             """)
             
             if not filtered_df.empty:
@@ -266,6 +262,7 @@ if uploaded_file is not None:
 
                     top5_dev = plot_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                     
+                    # 1. Vẽ mũi tên chỉ vào Top 5
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
                         fig.add_annotation(
                             x=row['塗料序號'],       
@@ -285,6 +282,28 @@ if uploaded_file is not None:
                             borderpad=3
                         )
                     
+                    # 2. Tạo bảng danh sách Top 5 bên phải (nhúng thẳng vào Plotly)
+                    top5_text = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
+                    for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
+                        top5_text += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
+                        top5_text += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
+                        top5_text += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
+                    
+                    top5_text = top5_text[:-8] # Cắt bỏ 2 thẻ <br> thừa ở cuối cùng
+
+                    fig.add_annotation(
+                        x=1.015, y=0.75,  # Đặt tọa độ X sang bên phải, Y tụt xuống 1 chút so với Legend
+                        xref="paper", yref="paper",
+                        xanchor="left", yanchor="top",
+                        text=top5_text,
+                        showarrow=False,
+                        align="left",
+                        bgcolor="#f9fbfd",
+                        bordercolor="#e6e6e6",
+                        borderwidth=1,
+                        borderpad=10
+                    )
+
                     y_min = plot_df['合計績效%'].min() - 5
                     y_max = max(120, plot_df['合計績效%'].max() + 5)
                     fig.update_yaxes(range=[y_min, y_max])
@@ -303,36 +322,13 @@ if uploaded_file is not None:
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
                         xaxis=dict(title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints} 支 (Total Items)</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
                         yaxis_title="<b>合計績效 (%)</b>",
-                        margin=dict(r=10) # Giảm lề phải để gọn hơn
+                        margin=dict(r=150) # Tăng lề phải để chứa vừa bảng Top 5
                     )
                     fig.update_traces(marker=dict(line=dict(width=1, color='black')))
                     
-                    # ========================================================
-                    # CHIA CỘT: BIỂU ĐỒ (8.8) & DANH SÁCH TOP 5 GỌN GÀNG (1.2)
-                    # ========================================================
-                    col_chart, col_list = st.columns([8.8, 1.2])
-                    
-                    with col_chart:
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                    with col_list:
-                        # Đẩy danh sách xuống ngang tầm với phần dữ liệu
-                        st.markdown("<div style='margin-top: 80px;'></div>", unsafe_allow_html=True)
-                        
-                        # Ép chuỗi HTML sát lề trái để Streamlit không hiểu nhầm là Code Block
-                        list_html = "<div style='border: 1px solid #e6e6e6; border-radius: 5px; padding: 10px; background-color: #f9fbfd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-family: Arial, sans-serif;'>"
-                        list_html += "<div style='text-align: center; color: #990000; font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-bottom: 10px;'>🚨 Top 5<br>改善名單</div>"
-                        
-                        for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
-                            list_html += "<div style='margin-bottom: 10px; line-height: 1.4;'>"
-                            list_html += f"<span style='font-size: 12px; font-weight: bold; color: #333;'>Top {rank}</span><br>"
-                            list_html += f"<span style='font-size: 11px; color: #000;'>{row['塗料編號']}</span><br>"
-                            list_html += f"<span style='font-size: 12px; font-weight: bold; color: #990000;'>Δ {row['Δ耗用 (Deviation)']:,.0f}</span>"
-                            list_html += "</div>"
-                            
-                        list_html += "</div>"
-                        
-                        st.markdown(list_html, unsafe_allow_html=True)
+                    # In duy nhất một biểu đồ (bảng danh sách đã nằm gọn bên trong biểu đồ)
+                    st.plotly_chart(fig, use_container_width=True)
+
         with tab_bar:
             st.subheader("5. 單一塗料：理論耗用 vs 實際耗用明細")
             for i in range(num_charts):
@@ -460,7 +456,6 @@ if uploaded_file is not None:
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
 
-                            # Tích hợp thêm mũi tên chỉ định Top 5 cho phiên bản xuất HTML Report
                             top5_dev_line = plot_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                             for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
                                 fig_line.add_annotation(
@@ -481,6 +476,28 @@ if uploaded_file is not None:
                                     borderpad=3
                                 )
                             
+                            # Nhúng bảng Top 5 vào biểu đồ trong Export HTML
+                            top5_text_exp = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
+                            for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
+                                top5_text_exp += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
+                                top5_text_exp += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
+                                top5_text_exp += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
+                            
+                            top5_text_exp = top5_text_exp[:-8]
+
+                            fig_line.add_annotation(
+                                x=1.015, y=0.75,
+                                xref="paper", yref="paper",
+                                xanchor="left", yanchor="top",
+                                text=top5_text_exp,
+                                showarrow=False,
+                                align="left",
+                                bgcolor="#f9fbfd",
+                                bordercolor="#e6e6e6",
+                                borderwidth=1,
+                                borderpad=10
+                            )
+
                             y_min_exp = plot_df_line['合計績效%'].min() - 5
                             y_max_exp = max(120, plot_df_line['合計績效%'].max() + 5)
                             fig_line.update_yaxes(range=[y_min_exp, y_max_exp])
@@ -498,7 +515,8 @@ if uploaded_file is not None:
                                 height=700,
                                 title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>",
                                 xaxis=dict(title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints_line} 支 (Total Items)</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')), 
-                                yaxis_title="<b>合計績效 (%)</b>"
+                                yaxis_title="<b>合計績效 (%)</b>",
+                                margin=dict(r=150)
                             )
                             fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                             
