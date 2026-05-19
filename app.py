@@ -242,6 +242,7 @@ if uploaded_file is not None:
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
             * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption). 圓點越大，系統設定上的預期耗用量越高.
             * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線；**90% & 110%** 為深天藍色點線.
+            * 🚨 **Top 5:** 自動偵測全廠耗用差異 (Deviation) 最大的前五支塗料並標記 mũi tên.
             """)
             
             if not filtered_df.empty:
@@ -258,6 +259,33 @@ if uploaded_file is not None:
                         category_orders={"績效等級": labels_global},
                         hover_name='塗料編號'
                     )
+
+                    # ========================================================
+                    # 👇 THÊM ĐOẠN CODE NÀY ĐỂ VẼ MŨI TÊN CHỈ VÀO TOP 5
+                    # ========================================================
+                    # Lấy ra Top 5 mã có độ hao hụt (Deviation) lớn nhất
+                    top5_dev = plot_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
+                    
+                    # Gắn mũi tên chỉ vào từng điểm trong Top 5
+                    for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
+                        fig.add_annotation(
+                            x=row['塗料序號'],       
+                            y=row['合計績效%'],       
+                            text=f"🚨 Top {rank}",  
+                            showarrow=True,          
+                            arrowhead=3,             
+                            arrowsize=1.5,           
+                            arrowwidth=2,            
+                            arrowcolor="#990000",    
+                            ax=0,                    
+                            ay=-45,                  
+                            font=dict(color="#990000", size=11, weight="bold"),
+                            bgcolor="rgba(255, 255, 255, 0.85)", 
+                            bordercolor="#990000",   
+                            borderwidth=1,
+                            borderpad=3
+                        )
+                    # ========================================================
                     
                     y_min = plot_df['合計績效%'].min() - 5
                     y_max = max(120, plot_df['合計績效%'].max() + 5)
@@ -408,6 +436,30 @@ if uploaded_file is not None:
                                 color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
+
+                            # ========================================================
+                            # 👇 THÊM ĐOẠN CODE NÀY ĐỂ VẼ MŨI TÊN CHỈ VÀO TOP 5 (CHO BẢN XUẤT HTML)
+                            # ========================================================
+                            top5_dev_line = plot_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
+                            for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
+                                fig_line.add_annotation(
+                                    x=row['塗料序號'],       
+                                    y=row['合計績效%'],       
+                                    text=f"🚨 Top {rank}",  
+                                    showarrow=True,          
+                                    arrowhead=3,             
+                                    arrowsize=1.5,           
+                                    arrowwidth=2,            
+                                    arrowcolor="#990000",    
+                                    ax=0,                    
+                                    ay=-45,                  
+                                    font=dict(color="#990000", size=11, weight="bold"),
+                                    bgcolor="rgba(255, 255, 255, 0.85)", 
+                                    bordercolor="#990000",   
+                                    borderwidth=1,
+                                    borderpad=3
+                                )
+                            # ========================================================
                             
                             y_min_exp = plot_df_line['合計績效%'].min() - 5
                             y_max_exp = max(120, plot_df_line['合計績效%'].max() + 5)
