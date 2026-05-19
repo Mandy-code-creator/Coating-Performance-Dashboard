@@ -234,7 +234,8 @@ if uploaded_file is not None:
                         st.plotly_chart(fig_box2, use_container_width=True)
 
         # ========================================================
-        # 🎯 TRỰC QUAN HÓA TAB_SCATTER (ĐÃ CÓ MŨI TÊN & DANH SÁCH BÊN PHẢI)
+        # ========================================================
+        # 🎯 TRỰC QUAN HÓA TAB_SCATTER (ĐÃ CÓ MŨI TÊN & DANH SÁCH GỌN GÀNG)
         # ========================================================
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
@@ -245,7 +246,7 @@ if uploaded_file is not None:
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
             * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption). 圓點越大，系統設定上的預期耗用量越高.
             * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線；**90% & 110%** 為深天藍色點線.
-            * 🚨 **Top 5 改善名單:** Hệ thống tự động xác định 5 mã sơn có lượng hao hụt thực tế lớn nhất để cắm mũi tên và liệt kê danh sách ở bên phải.
+            * 🚨 **Top 5 改善名單:** 自動偵測耗用差異最大的前五支塗料.
             """)
             
             if not filtered_df.empty:
@@ -263,10 +264,8 @@ if uploaded_file is not None:
                         hover_name='塗料編號'
                     )
 
-                    # Tìm kiếm tự động danh sách 5 mã sơn hao hụt nặng nhất
                     top5_dev = plot_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                     
-                    # Vẽ mũi tên đỏ chỉ thẳng vào bong bóng trên biểu đồ
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
                         fig.add_annotation(
                             x=row['塗料序號'],       
@@ -304,24 +303,40 @@ if uploaded_file is not None:
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
                         xaxis=dict(title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints} 支 (Total Items)</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
                         yaxis_title="<b>合計績效 (%)</b>",
-                        margin=dict(r=20)
+                        margin=dict(r=10) # Giảm lề phải để gọn hơn
                     )
                     fig.update_traces(marker=dict(line=dict(width=1, color='black')))
                     
-                    # Thiết lập bố cục cột: Biểu đồ chiếm 85% diện tích bên trái, danh sách chiếm 15% bên phải
-                    col_chart, col_list = st.columns([8.5, 1.5])
+                    # ========================================================
+                    # CHIA CỘT: BIỂU ĐỒ (8.8) & DANH SÁCH TOP 5 GỌN GÀNG (1.2)
+                    # ========================================================
+                    col_chart, col_list = st.columns([8.8, 1.2])
                     
                     with col_chart:
                         st.plotly_chart(fig, use_container_width=True)
                         
                     with col_list:
+                        # Đẩy danh sách xuống ngang tầm với phần dữ liệu
                         st.markdown("<div style='margin-top: 80px;'></div>", unsafe_allow_html=True)
-                        st.markdown("<h4 style='color: #990000; text-align: center;'>🚨 Top 5<br>改善名單</h4>", unsafe_allow_html=True)
                         
-                        # Vòng lặp xuất các khối thông tin (Label Card) của Top 5 mã sơn cần cải thiện
+                        # Tạo bảng danh sách gọn gàng bằng HTML/CSS giống Legend
+                        list_html = """
+                        <div style='border: 1px solid #e6e6e6; border-radius: 5px; padding: 10px; background-color: #f9fbfd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-family: Arial, sans-serif;'>
+                            <div style='text-align: center; color: #990000; font-weight: bold; font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-bottom: 10px;'>
+                                🚨 Top 5<br>改善名單
+                            </div>
+                        """
                         for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
-                            st.error(f"**Top {rank}**\n\n**{row['塗料編號']}**\n\nΔ {row['Δ耗用 (Deviation)']:,.0f}")
-
+                            list_html += f"""
+                            <div style='margin-bottom: 10px; line-height: 1.4;'>
+                                <span style='font-size: 12px; font-weight: bold; color: #333;'>Top {rank}</span><br>
+                                <span style='font-size: 11px; color: #000;'>{row['塗料編號']}</span><br>
+                                <span style='font-size: 12px; font-weight: bold; color: #990000;'>Δ {row['Δ耗用 (Deviation)']:,.0f}</span>
+                            </div>
+                            """
+                        list_html += "</div>"
+                        
+                        st.markdown(list_html, unsafe_allow_html=True)
         with tab_bar:
             st.subheader("5. 單一塗料：理論耗用 vs 實際耗用明細")
             for i in range(num_charts):
