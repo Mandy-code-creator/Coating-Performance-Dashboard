@@ -233,6 +233,9 @@ if uploaded_file is not None:
                                                yaxis_title="<b>績效 (%)</b>", showlegend=False)
                         st.plotly_chart(fig_box2, use_container_width=True)
 
+        # ========================================================
+        # 🎯 TAB_SCATTER: CHỨA BIỂU ĐỒ VÀ BẢNG TOP 5 ĐỒNG BỘ
+        # ========================================================
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
             
@@ -240,9 +243,8 @@ if uploaded_file is not None:
             💡 **圖表說明 (How to read this chart):**
             * **X軸 (X-Axis):** 塗料排序序號 (Paint Sequence No.).
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
-            * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption). 圓點越大，系統設定上的預期耗用量越高.
-            * **基準線 (Reference Lines):** 🎯 **Target (100%)** 為紅虛線；**90% & 110%** 為深天藍色點線.
-            * 🚨 **Top 5 改善名單:** 系統會自動找出耗損最大的5支塗料，並在右側列出明細。
+            * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption).
+            * 🚨 **Top 5 改善名單:** Bảng danh sách Top 5 đã được tích hợp thẳng vào góc phải biểu đồ, đảm bảo khi tải báo cáo HTML về vẫn hiển thị đầy đủ.
             """)
             
             if not filtered_df.empty:
@@ -260,9 +262,10 @@ if uploaded_file is not None:
                         hover_name='塗料編號'
                     )
 
+                    # Tìm kiếm tự động danh sách 5 mã sơn hao hụt nặng nhất
                     top5_dev = plot_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                     
-                    # 1. Vẽ mũi tên chỉ vào Top 5
+                    # Vẽ mũi tên đỏ chỉ thẳng vào bong bóng trên biểu đồ
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
                         fig.add_annotation(
                             x=row['塗料序號'],       
@@ -282,17 +285,17 @@ if uploaded_file is not None:
                             borderpad=3
                         )
                     
-                    # 2. Tạo bảng danh sách Top 5 bên phải (nhúng thẳng vào Plotly)
+                    # Tạo nhãn chuỗi HTML cho bảng danh sách Top 5 bên phải biểu đồ
                     top5_text = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
                         top5_text += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
                         top5_text += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
                         top5_text += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
-                    
-                    top5_text = top5_text[:-8] # Cắt bỏ 2 thẻ <br> thừa ở cuối cùng
+                    top5_text = top5_text[:-8]
 
+                    # Nhúng thẳng nhãn bảng Top 5 vào layout biểu đồ Plotly
                     fig.add_annotation(
-                        x=1.015, y=0.75,  # Đặt tọa độ X sang bên phải, Y tụt xuống 1 chút so với Legend
+                        x=1.015, y=0.75,  
                         xref="paper", yref="paper",
                         xanchor="left", yanchor="top",
                         text=top5_text,
@@ -322,11 +325,9 @@ if uploaded_file is not None:
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
                         xaxis=dict(title=f"<b>塗料排序序號 (Paint Sequence No.) - 總計: {total_paints} 支 (Total Items)</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
                         yaxis_title="<b>合計績效 (%)</b>",
-                        margin=dict(r=150) # Tăng lề phải để chứa vừa bảng Top 5
+                        margin=dict(r=150) # Tăng biên phải để chứa bảng dữ liệu không bị lấp
                     )
                     fig.update_traces(marker=dict(line=dict(width=1, color='black')))
-                    
-                    # In duy nhất một biểu đồ (bảng danh sách đã nằm gọn bên trong biểu đồ)
                     st.plotly_chart(fig, use_container_width=True)
 
         with tab_bar:
@@ -377,7 +378,7 @@ if uploaded_file is not None:
             st.dataframe(filtered_df)
 
         # ==========================================
-        # [ 4. EXPORT REPORT TO HTML ] 
+        # [ 4. EXPORT REPORT TO HTML ] - ĐỒNG BỘ CHO BẢN TẢI VỀ
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("📥 [4] 快速匯出報表 (HTML Export)")
@@ -441,7 +442,7 @@ if uploaded_file is not None:
                         sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                         total_paints_line = len(sort_order_line)
                         
-                        # --- 1. SCATTER PLOT (Export Version) ---
+                        # --- 1. SCATTER PLOT (Đồng bộ nhúng Top 5 cho file xuất HTML) ---
                         plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                         plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                         if not plot_df_line.empty:
@@ -476,13 +477,12 @@ if uploaded_file is not None:
                                     borderpad=3
                                 )
                             
-                            # Nhúng bảng Top 5 vào biểu đồ trong Export HTML
+                            # Tiến hành dựng lại bảng text danh sách nhúng thẳng vào file HTML tải về
                             top5_text_exp = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
                             for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
                                 top5_text_exp += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
                                 top5_text_exp += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
                                 top5_text_exp += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
-                            
                             top5_text_exp = top5_text_exp[:-8]
 
                             fig_line.add_annotation(
@@ -524,7 +524,7 @@ if uploaded_file is not None:
                             html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                             html_content += "</div>"
                         
-                        # --- 2. PARETO CHART (Export Version) ---
+                        # --- 2. PARETO CHART ---
                         html_content += "<div class='keep-together'>"
                         html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                         pareto_df_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
@@ -551,7 +551,7 @@ if uploaded_file is not None:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
                             html_content += "</div>"
 
-                        # --- 3. TOP 10 TABLE (Export Version) ---
+                        # --- 3. TOP 10 TABLE ---
                         html_content += "<div class='keep-together'>"
                         html_content += f"<h3>📋 Top 10 嚴重超耗塗料清單 (Top 10 Over-consumption Table)</h3>"
                         over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 200].copy()
