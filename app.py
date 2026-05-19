@@ -233,9 +233,6 @@ if uploaded_file is not None:
                                                yaxis_title="<b>績效 (%)</b>", showlegend=False)
                         st.plotly_chart(fig_box2, use_container_width=True)
 
-        # ========================================================
-        # 🎯 TAB_SCATTER: CHỨA BIỂU ĐỒ VÀ BẢNG TOP 5 ĐỒNG BỘ
-        # ========================================================
         with tab_scatter:
             st.subheader(f"4. 塗料績效燈號全景總覽 (共 {total_paints} 支)")
             
@@ -244,7 +241,7 @@ if uploaded_file is not None:
             * **X軸 (X-Axis):** 塗料排序序號 (Paint Sequence No.).
             * **Y軸 (Y-Axis):** 合計績效 (Total Performance %). 
             * **圓點大小 (Bubble Size):** 代表「合計理論耗用」量 (Theoretical Consumption).
-            * 🚨 **Top 5 改善名單:** Bảng danh sách Top 5 đã được tích hợp thẳng vào góc phải biểu đồ, đảm bảo khi tải báo cáo HTML về vẫn hiển thị đầy đủ.
+            * 🚨 **Top 5 改善名單:** 自動偵測「績效低於90%」且「耗用差異最大」的前五支塗料 (Chỉ hiển thị các mã < 90%).
             """)
             
             if not filtered_df.empty:
@@ -262,8 +259,9 @@ if uploaded_file is not None:
                         hover_name='塗料編號'
                     )
 
-                    # Tìm kiếm tự động danh sách 5 mã sơn hao hụt nặng nhất
-                    top5_dev = plot_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
+                    # CHỈ LỌC CÁC MÃ SƠN CÓ HIỆU SUẤT < 90%
+                    needs_improvement_df = plot_df[plot_df['合計績效%'] < 90]
+                    top5_dev = needs_improvement_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                     
                     # Vẽ mũi tên đỏ chỉ thẳng vào bong bóng trên biểu đồ
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
@@ -286,12 +284,15 @@ if uploaded_file is not None:
                         )
                     
                     # Tạo nhãn chuỗi HTML cho bảng danh sách Top 5 bên phải biểu đồ
-                    top5_text = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
-                    for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
-                        top5_text += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
-                        top5_text += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
-                        top5_text += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
-                    top5_text = top5_text[:-8]
+                    if not top5_dev.empty:
+                        top5_text = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
+                        for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
+                            top5_text += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
+                            top5_text += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
+                            top5_text += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
+                        top5_text = top5_text[:-8]
+                    else:
+                        top5_text = "<span style='color:#008000; font-size:14px'><b>🎉 績效良好<br>無需改善</b></span>"
 
                     # Nhúng thẳng nhãn bảng Top 5 vào layout biểu đồ Plotly
                     fig.add_annotation(
@@ -378,7 +379,7 @@ if uploaded_file is not None:
             st.dataframe(filtered_df)
 
         # ==========================================
-        # [ 4. EXPORT REPORT TO HTML ] - ĐỒNG BỘ CHO BẢN TẢI VỀ
+        # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("📥 [4] 快速匯出報表 (HTML Export)")
@@ -442,7 +443,7 @@ if uploaded_file is not None:
                         sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                         total_paints_line = len(sort_order_line)
                         
-                        # --- 1. SCATTER PLOT (Đồng bộ nhúng Top 5 cho file xuất HTML) ---
+                        # --- 1. SCATTER PLOT (Export Version) ---
                         plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                         plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                         if not plot_df_line.empty:
@@ -457,7 +458,10 @@ if uploaded_file is not None:
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
 
-                            top5_dev_line = plot_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
+                            # CHỈ LỌC CÁC MÃ SƠN CÓ HIỆU SUẤT < 90% (CHO BẢN XUẤT HTML)
+                            needs_improve_line = plot_df_line[plot_df_line['合計績效%'] < 90]
+                            top5_dev_line = needs_improve_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
+                            
                             for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
                                 fig_line.add_annotation(
                                     x=row['塗料序號'],       
@@ -477,13 +481,15 @@ if uploaded_file is not None:
                                     borderpad=3
                                 )
                             
-                            # Tiến hành dựng lại bảng text danh sách nhúng thẳng vào file HTML tải về
-                            top5_text_exp = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
-                            for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
-                                top5_text_exp += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
-                                top5_text_exp += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
-                                top5_text_exp += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
-                            top5_text_exp = top5_text_exp[:-8]
+                            if not top5_dev_line.empty:
+                                top5_text_exp = "<span style='color:#990000; font-size:14px'><b>🚨 Top 5<br>改善名單</b></span><br><br>"
+                                for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
+                                    top5_text_exp += f"<span style='font-size:12px; color:#333'><b>Top {rank}</b></span><br>"
+                                    top5_text_exp += f"<span style='font-size:11px; color:#000'>{row['塗料編號']}</span><br>"
+                                    top5_text_exp += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
+                                top5_text_exp = top5_text_exp[:-8]
+                            else:
+                                top5_text_exp = "<span style='color:#008000; font-size:14px'><b>🎉 績效良好<br>無需改善</b></span>"
 
                             fig_line.add_annotation(
                                 x=1.015, y=0.75,
