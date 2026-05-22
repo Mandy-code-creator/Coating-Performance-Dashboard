@@ -325,7 +325,7 @@ if uploaded_file is not None:
                         height=700, 
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
                         # Đã sửa lại trục X thành 項次 theo yêu cầu Sếp
-                        xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')),
+                        xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1),
                         yaxis_title="<b>合計績效 (%)</b>",
                         margin=dict(r=150) # Tăng biên phải để chứa bảng dữ liệu không bị lấp
                     )
@@ -521,7 +521,7 @@ if uploaded_file is not None:
                             fig_line.update_layout(
                                 height=700,
                                 title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>",
-                                xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold')), 
+                                xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), 
                                 yaxis_title="<b>合計績效 (%)</b>",
                                 margin=dict(r=150)
                             )
