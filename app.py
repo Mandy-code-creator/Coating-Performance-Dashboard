@@ -245,10 +245,14 @@ if uploaded_file is not None:
             """)
             
             if not filtered_df.empty:
+                # 1. LỌC DỮ LIỆU TRƯỚC
                 plot_df = filtered_df.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                 plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
+                
                 if not plot_df.empty:
-                    seq_map = {code: i+1 for i, code in enumerate(sort_order)}
+                    # 2. ĐÁNH SỐ THỨ TỰ (項次) SAU KHI ĐÃ LỌC
+                    sort_order_plot = plot_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
+                    seq_map = {code: i+1 for i, code in enumerate(sort_order_plot)}
                     plot_df['塗料序號'] = plot_df['塗料編號'].map(seq_map)
                     
                     fig = px.scatter(
@@ -448,15 +452,19 @@ if uploaded_file is not None:
                         html_content += f"<h2>🏭 線別 (Line): {line}</h2>"
                         df_line = df_word[df_word['線別'] == line].copy()
                         
-                        sort_order_line = df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
-                        total_paints_line = len(sort_order_line)
-                        
                         # --- 1. SCATTER PLOT (Export Version) ---
+                        # 1. LỌC DỮ LIỆU TRƯỚC (Loại bỏ giá trị rỗng và Theoretical Value <= 0)
                         plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                         plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
+                        
                         if not plot_df_line.empty:
+                            # 2. LẤY DANH SÁCH VÀ ĐÁNH SỐ THỨ TỰ (項次) TỪ DỮ LIỆU ĐÃ LỌC SẠCH
+                            sort_order_line = plot_df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                             seq_map_line = {code: i+1 for i, code in enumerate(sort_order_line)}
                             plot_df_line['塗料序號'] = plot_df_line['塗料編號'].map(seq_map_line)
+                            
+                            # Cập nhật thêm biến total_paints_line cho các logic bên dưới nếu có dùng
+                            total_paints_line = len(sort_order_line)
                             
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
