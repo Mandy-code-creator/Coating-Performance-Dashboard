@@ -256,7 +256,14 @@ if uploaded_file is not None:
                         color_discrete_map=perf_color_map,
                         size='合計理論耗用', size_max=30,
                         category_orders={"績效等級": labels_global},
-                        hover_name='塗料編號'
+                        hover_name='塗料編號',
+                        # THÊM ĐOẠN HOVER_DATA NÀY VÀO:
+                        hover_data={
+                            '塗料序號': False,                     # Ẩn số thứ tự (trục X) cho đỡ rối
+                            '合計績效%': ':.2f',                  # Hiển thị % với 2 số thập phân
+                            '合計理論耗用': ':,.0f',               # Theoretical Value (Giá trị lý thuyết)
+                            'Δ耗用 (Deviation)': ':,.0f'         # Lượng hao hụt so với lý thuyết
+                        }
                     )
 
                     # CHỈ LỌC CÁC MÃ SƠN CÓ HIỆU SUẤT < 90%
@@ -454,8 +461,15 @@ if uploaded_file is not None:
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
                                 symbol='用途', 
-                                symbol_map={"正面漆": "circle", "背面漆": "diamond"}, # 📌 Thêm dòng này để cố định hình dáng
-                                hover_data={'用途': True, '合計績效%': True}, 
+                                symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
+                                # SỬA LẠI ĐOẠN HOVER_DATA NÀY:
+                                hover_data={
+                                    '塗料序號': False,
+                                    '用途': True, 
+                                    '合計績效%': ':.2f',
+                                    '合計理論耗用': ':,.0f',        # Theoretical Value
+                                    'Δ耗用 (Deviation)': ':,.0f'  # Lượng hao hụt (siêu tiêu hao)
+                                }, 
                                 color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
