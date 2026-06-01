@@ -397,7 +397,7 @@ if uploaded_file is not None:
                 df_word = df[(df['用途'].isin(target_usages)) & (df['年月'] == latest_month)].copy()
                 
                 if "View 2" in report_view_sel:
-                    df_word = df_word[df_word['Δ耗用 (Deviation)'] > 150]
+                    df_word = df_word[df_word['Δ耗用 (Deviation)'] > 200]
                     report_title_suffix = "(Deviation > 200)"
                 else:
                     report_title_suffix = "(Full Report)"
