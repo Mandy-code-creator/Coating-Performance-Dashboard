@@ -381,6 +381,7 @@ if uploaded_file is not None:
 
         # ==========================================
         # ==========================================
+        # ==========================================
         # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE]
         # ==========================================
         with tab_comp:
@@ -396,26 +397,62 @@ if uploaded_file is not None:
                     df_bar_comp = comp_df.groupby('塗料編號')[['設定績效%', '合計績效%']].mean().reset_index()
 
                     fig_comp = go.Figure()
-                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['設定績效%'], name='設定績效% (Theoretical)', marker_color='#8e44ad', marker_line_color='black', marker_line_width=1.5))
-                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['合計績效%'], name='合計績效% (Actual)', marker_color='#f39c12', marker_line_color='black', marker_line_width=1.5))
+                    
+                    # Cải thiện thiết kế cột và thêm Data Label (hiển thị số trực tiếp)
+                    fig_comp.add_trace(go.Bar(
+                        x=df_bar_comp['塗料編號'], y=df_bar_comp['設定績效%'], 
+                        name='設定績效% (Theoretical)', 
+                        marker_color='#6D28D9', # Màu tím hiện đại hơn
+                        marker_line_color='black', marker_line_width=1.2,
+                        text=df_bar_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
+                        textposition='auto'
+                    ))
+                    fig_comp.add_trace(go.Bar(
+                        x=df_bar_comp['塗料編號'], y=df_bar_comp['合計績效%'], 
+                        name='合計績效% (Actual)', 
+                        marker_color='#F59E0B', # Màu cam sáng dễ nhìn hơn
+                        marker_line_color='black', marker_line_width=1.2,
+                        text=df_bar_comp['合計績效%'].apply(lambda x: f'{x:.1f}%'),
+                        textposition='auto'
+                    ))
+
+                    # THUẬT TOÁN XỬ LÝ CỘT QUÁ TO: Tự động điều chỉnh khoảng cách (bargap) dựa trên số lượng dữ liệu
+                    num_items = len(df_bar_comp)
+                    dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
 
                     fig_comp.update_layout(**common_layout)
                     fig_comp.update_layout(
-                        barmode='group', height=550,
+                        barmode='group', 
+                        height=550,
+                        bargap=dynamic_bargap, 
+                        bargroupgap=0.05,
                         title="<b>低設定績效塗料: 理論 vs 實際表現 (Theoretical vs Actual)</b>",
-                        xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
-                        yaxis=dict(title="<b>績效 (%)</b>"),
-                        margin=dict(b=160),
-                        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255, 255, 255, 0.8)')
+                        xaxis=dict(
+                            title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=20), 
+                            tickangle=-45, # Chữ nghiêng 45 độ sẽ thanh thoát hơn 90 độ
+                            automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True
+                        ),
+                        yaxis=dict(
+                            title="<b>績效 (%)</b>",
+                            range=[0, max(100, df_bar_comp['設定績效%'].max() + 15)] # Đảm bảo trục Y đủ cao
+                        ),
+                        margin=dict(b=120, t=80),
+                        # Chuyển Legend lên trên cùng nằm ngang để không đè vào cột biểu đồ
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom", y=1.02, 
+                            xanchor="right", x=1,
+                            bgcolor='rgba(255, 255, 255, 0)'
+                        )
                     )
 
-                    # GIỮ LẠI ĐƯỜNG KẺ NGANG 85%
-                    fig_comp.add_hline(y=85, line_dash="dash", line_color="red", line_width=2)
+                    # ĐƯỜNG KẺ NGANG 85%
+                    fig_comp.add_hline(y=85, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_comp.add_annotation(
                         x=1, y=85, xref="paper", yref="y", 
                         text="<b>85% Threshold</b>", 
-                        showarrow=False, xanchor="right", yanchor="bottom", 
-                        font=dict(color="red", size=14, weight="bold")
+                        showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
+                        font=dict(color="#DC2626", size=13, weight="bold")
                     )
 
                     st.plotly_chart(fig_comp, use_container_width=True)
