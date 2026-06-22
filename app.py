@@ -128,9 +128,9 @@ if uploaded_file is not None:
         items_per_chart = 40
         num_charts = math.ceil(total_paints / items_per_chart) if items_per_chart else 0
 
-        tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev, tab_comp = st.tabs([
+        tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev, tab_comp, tab_gap = st.tabs([
             "🍩 [總覽] 績效分佈", "🚨 [決策] 優先改善清單", "📦 [根因] 穩定度分析", 
-            "🎯 [全景] 績效燈號", "📊 [明細] 耗用對比", "📉 [明細] 差異分析", "⚖️ [對比] 績效基準"
+            "🎯 [全景] 績效燈號", "📊 [明細] 耗用對比", "📉 [明細] 差異分析", "⚖️ [對比] 低效基準", "📈 [全局] 績效落差"
         ])
 
         common_layout = dict(
@@ -460,7 +460,64 @@ if uploaded_file is not None:
                     st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 90% 且實際表現更低的塗料。(No items match the criteria)")
             else:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
+        # ==========================================
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (ALL DATA)]
+        # ==========================================
+        with tab_gap:
+            st.subheader("8. 全局績效落差分析 (實際績效% - 設定績效%)")
+            st.info("💡 此圖表顯示「所有塗料」的實際績效與設定績效的落差。紅柱代表未達標 (實際低於設定)，綠柱代表達標或超標 (實際大於等於設定)。")
 
+            if '設定績效%' in filtered_df.columns:
+                gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
+                
+                if not gap_df.empty:
+                    # Gom nhóm theo mã sơn và công dụng (giống tab 7)
+                    df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
+                    
+                    # Tính toán độ chênh lệch (Actual - Theoretical)
+                    df_gap_comp['績效落差%'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
+                    df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
+                    
+                    # Sắp xếp từ kém nhất (âm nhiều nhất) đến tốt nhất (dương nhiều nhất)
+                    df_gap_comp = df_gap_comp.sort_values(by='績效落差%')
+                    
+                    # Phân loại màu sắc: Âm = Đỏ, Dương = Xanh
+                    df_gap_comp['狀態'] = np.where(df_gap_comp['績效落差%'] >= 0, '達標/超標 (>=0)', '未達標 (<0)')
+                    
+                    fig_gap = px.bar(
+                        df_gap_comp, 
+                        x='Display_Label', 
+                        y='績效落差%', 
+                        color='狀態',
+                        color_discrete_map={'達標/超標 (>=0)': '#10B981', '未達標 (<0)': '#EF4444'},
+                        text=df_gap_comp['績效落差%'].apply(lambda x: f"{x:+.1f}%") # Thêm dấu +/- trước số
+                    )
+                    
+                    fig_gap.update_traces(
+                        textposition='auto', 
+                        textfont=dict(weight='bold'),
+                        marker_line_color='black', 
+                        marker_line_width=1.2
+                    )
+                    
+                    fig_gap.update_layout(**common_layout)
+                    fig_gap.update_layout(
+                        height=600,
+                        title="<b>全廠數據: 績效落差對比 (Actual % - Theoretical %)</b>",
+                        xaxis=dict(title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", tickangle=-45, automargin=True),
+                        yaxis=dict(title="<b>績效落差 Gap (%)</b>"),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=""),
+                        margin=dict(b=120, t=80)
+                    )
+                    
+                    # Thêm đường line đen ở mốc 0 để phân định rõ ràng
+                    fig_gap.add_hline(y=0, line_width=2, line_color="black")
+                    
+                    st.plotly_chart(fig_gap, use_container_width=True)
+                else:
+                    st.success("🎉 目前沒有足夠的數據可供分析。")
+            else:
+                st.warning("⚠️ 找不到「設定績效%」欄位。")
         # ==========================================
         # ==========================================
         # ==========================================
