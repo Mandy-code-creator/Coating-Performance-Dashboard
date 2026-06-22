@@ -128,9 +128,9 @@ if uploaded_file is not None:
         items_per_chart = 40
         num_charts = math.ceil(total_paints / items_per_chart) if items_per_chart else 0
 
-        tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev = st.tabs([
+        tab_overview, tab_pareto, tab_rootcause, tab_scatter, tab_bar, tab_dev, tab_comp = st.tabs([
             "🍩 [總覽] 績效分佈", "🚨 [決策] 優先改善清單", "📦 [根因] 穩定度分析", 
-            "🎯 [全景] 績效燈號", "📊 [明細] 耗用對比", "📉 [明細] 差異分析"
+            "🎯 [全景] 績效燈號", "📊 [明細] 耗用對比", "📉 [明細] 差異分析", "⚖️ [對比] 績效基準"
         ])
 
         common_layout = dict(
@@ -610,3 +610,39 @@ if uploaded_file is not None:
         st.error(f"System Error：{e}")
 else:
     st.info("👈 請上傳 MES 數據檔案。(Please upload MES Data file)")
+# ==========================================
+        # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE <= 85%]
+        # ==========================================
+        with tab_comp:
+            st.subheader("7. 理論績效 vs 實際績效對比 (設定績效 <= 85%)")
+            st.info("💡 此圖表僅顯示「設定績效%」小於或等於 85% 的塗料，藉此對比其實際達成的「合計績效%」。 (Only displaying items with theoretical performance <= 85%)")
+
+            if '設定績效%' in filtered_df.columns:
+                # Filter for items where '設定績效%' <= 85
+                comp_df = filtered_df[filtered_df['設定績效%'] <= 85].dropna(subset=['設定績效%', '合計績效%'])
+                
+                if not comp_df.empty:
+                    df_bar_comp = comp_df.groupby('塗料編號')[['設定績效%', '合計績效%']].mean().reset_index()
+
+                    fig_comp = go.Figure()
+                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['設定績效%'], name='設定績效% (Theoretical)', marker_color='#8e44ad', marker_line_color='black', marker_line_width=1.5))
+                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['合計績效%'], name='合計績效% (Actual)', marker_color='#f39c12', marker_line_color='black', marker_line_width=1.5))
+
+                    fig_comp.update_layout(**common_layout)
+                    fig_comp.update_layout(
+                        barmode='group', height=550,
+                        title="<b>低設定績效塗料: 理論 vs 實際表現 (Theoretical vs Actual for <= 85%)</b>",
+                        xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
+                        yaxis=dict(title="<b>績效 (%)</b>"),
+                        margin=dict(b=160),
+                        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255, 255, 255, 0.8)')
+                    )
+
+                    # 85% threshold line
+                    fig_comp.add_hline(y=85, line_dash="dash", line_color="red", line_width=2, annotation_text="85% Threshold", annotation_position="top right")
+
+                    st.plotly_chart(fig_comp, use_container_width=True)
+                else:
+                    st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 85% 的塗料。(No items found with theoretical performance <= 85%)")
+            else:
+                st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
