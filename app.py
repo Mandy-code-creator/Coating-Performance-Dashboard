@@ -462,6 +462,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
 
         # ==========================================
+        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
@@ -492,7 +493,8 @@ if uploaded_file is not None:
                     <html>
                     <head>
                         <meta charset='UTF-8'>
-                        <title>Performance Report</title>
+                        <title>Performance Report - {latest_month}</title>
+                        <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
                         <style>
                             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }}
                             .container {{ background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 1200px; margin: auto; }}
@@ -503,7 +505,7 @@ if uploaded_file is not None:
                             .keep-together {{
                                 page-break-inside: avoid;
                                 break-inside: avoid;
-                                margin-bottom: 20px;
+                                margin-bottom: 30px;
                             }}
 
                             .styled-table {{ border-collapse: collapse; margin: 25px 0; font-size: 0.9em; font-family: sans-serif; width: 100%; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15); }}
@@ -512,6 +514,13 @@ if uploaded_file is not None:
                             .styled-table tbody tr {{ border-bottom: 1px solid #dddddd; }}
                             .styled-table tbody tr:nth-of-type(even) {{ background-color: #f3f3f3; }}
                             .styled-table tbody tr:last-of-type {{ border-bottom: 2px solid #009879; }}
+                            
+                            /* TỐI ƯU HÓA: CSS dành riêng cho Print PDF */
+                            @media print {{
+                                body {{ background-color: white; -webkit-print-color-adjust: exact; }}
+                                .container {{ box-shadow: none; padding: 0; max-width: 100%; }}
+                                .keep-together {{ page-break-inside: avoid !important; }}
+                            }}
                         </style>
                     </head>
                     <body>
@@ -532,19 +541,10 @@ if uploaded_file is not None:
                             seq_map_line = {code: i+1 for i, code in enumerate(sort_order_line)}
                             plot_df_line['塗料序號'] = plot_df_line['塗料編號'].map(seq_map_line)
                             
-                            total_paints_line = len(sort_order_line)
-                            
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
-                                symbol='用途', 
-                                symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
-                                hover_data={
-                                    '塗料序號': False,
-                                    '用途': True, 
-                                    '合計績效%': ':.2f',
-                                    '合計理論耗用': ':,.0f',        
-                                    'Δ耗用 (Deviation)': ':,.0f'  
-                                }, 
+                                symbol='用途', symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
+                                hover_data={'塗料序號': False, '用途': True, '合計績效%': ':.2f', '合計理論耗用': ':,.0f', 'Δ耗用 (Deviation)': ':,.0f'}, 
                                 color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
@@ -555,44 +555,18 @@ if uploaded_file is not None:
                             for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
                                 short_code = str(row['塗料編號'])[-4:]
                                 fig_line.add_annotation(
-                                    x=row['塗料序號'],       
-                                    y=row['合計績效%'],       
-                                    text=f"🚨 {short_code}",  
-                                    showarrow=True,          
-                                    arrowhead=3,             
-                                    arrowsize=1.5,           
-                                    arrowwidth=2,            
-                                    arrowcolor="#990000",    
-                                    ax=0,                    
-                                    ay=-45,                  
-                                    font=dict(color="#990000", size=11, weight="bold"),
-                                    bgcolor="rgba(255, 255, 255, 0.85)", 
-                                    bordercolor="#990000",   
-                                    borderwidth=1,
-                                    borderpad=3
+                                    x=row['塗料序號'], y=row['合計績效%'], text=f"🚨 {short_code}", showarrow=True, arrowhead=3, arrowsize=1.5, arrowwidth=2, arrowcolor="#990000", ax=0, ay=-45, font=dict(color="#990000", size=11, weight="bold"), bgcolor="rgba(255, 255, 255, 0.85)", bordercolor="#990000", borderwidth=1, borderpad=3
                                 )
                             
                             if not top5_dev_line.empty:
                                 top5_text_exp = ""
                                 for rank, (_, row) in enumerate(top5_dev_line.iterrows(), start=1):
-                                    top5_text_exp += f"<span style='font-size:12px; color:#000'><b>{row['塗料編號']}</b></span><br>"
-                                    top5_text_exp += f"<span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
+                                    top5_text_exp += f"<span style='font-size:12px; color:#000'><b>{row['塗料編號']}</b></span><br><span style='font-size:12px; color:#990000'><b>Δ {row['Δ耗用 (Deviation)']:,.0f}</b></span><br><br>"
                                 top5_text_exp = top5_text_exp[:-8]
                             else:
                                 top5_text_exp = "<span style='color:#008000; font-size:14px'><b>🎉 績效良好<br>無需改善</b></span>"
 
-                            fig_line.add_annotation(
-                                x=1.015, y=0.75,
-                                xref="paper", yref="paper",
-                                xanchor="left", yanchor="top",
-                                text=top5_text_exp,
-                                showarrow=False,
-                                align="left",
-                                bgcolor="#f9fbfd",
-                                bordercolor="#e6e6e6",
-                                borderwidth=1,
-                                borderpad=10
-                            )
+                            fig_line.add_annotation(x=1.015, y=0.75, xref="paper", yref="paper", xanchor="left", yanchor="top", text=top5_text_exp, showarrow=False, align="left", bgcolor="#f9fbfd", bordercolor="#e6e6e6", borderwidth=1, borderpad=10)
 
                             y_min_exp = plot_df_line['合計績效%'].min() - 5
                             y_max_exp = max(120, plot_df_line['合計績效%'].max() + 5)
@@ -601,25 +575,17 @@ if uploaded_file is not None:
                             fig_line.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
                             fig_line.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
                             fig_line.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
-                            
                             fig_line.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=8, font=dict(color="red", size=16, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
-                            fig_line.add_annotation(x=0.99, y=90, xref="paper", yref="y", text="<b>90% Bound</b>", showarrow=False, xanchor="right", yanchor="top", yshift=-5, font=dict(color="deepskyblue", size=13, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
-                            fig_line.add_annotation(x=0.99, y=110, xref="paper", yref="y", text="<b>110% Bound</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=5, font=dict(color="deepskyblue", size=13, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
                             
-                            fig_line.update_layout(**common_layout)
-                            fig_line.update_layout(
-                                height=700,
-                                title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>",
-                                xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), 
-                                yaxis_title="<b>合計績效 (%)</b>",
-                                margin=dict(r=150)
-                            )
+                            fig_line.update_layout(**common_layout, height=600, title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>", xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), yaxis_title="<b>合計績效 (%)</b>", margin=dict(r=150))
                             fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                             
                             html_content += "<div class='keep-together'>"
-                            html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
+                            # Đổi include_plotlyjs=False vì đã nhúng 1 lần ở <head>
+                            html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
                             html_content += "</div>"
-                        # --- 4. CẬP NHẬT: Theoretical vs Actual Performance Chart (Export) ---
+                            
+                        # --- 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Export) ---
                         html_content += "<div class='keep-together'>"
                         html_content += f"<h3>⚖️ Line {line} - 低設定績效塗料: 理論 vs 實際 (設定績效 <= 90% 且 實際 < 理論)</h3>"
                         
@@ -632,33 +598,45 @@ if uploaded_file is not None:
                             
                             fig_comp_exp = go.Figure()
                             
-                            # THÊM NHÃN % VÀO CỘT TRONG BÁO CÁO HTML
+                            # TẠO TEXT CHUẨN ĐỂ PDF KHÔNG BỊ MẤT NHÃN %
+                            text_theo = [f"{val:.1f}%" for val in df_bar_comp_exp['設定績效%']]
+                            text_actual = [f"{val:.1f}%" for val in df_bar_comp_exp['合計績效%']]
+                            
                             fig_comp_exp.add_trace(go.Bar(
                                 x=df_bar_comp_exp['Display_Label'], y=df_bar_comp_exp['設定績效%'], 
                                 name='設定績效% (Theoretical)', marker_color='#6D28D9',
-                                text=df_bar_comp_exp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
-                                textposition='auto'
+                                text=text_theo, textposition='auto', textfont=dict(color='white', weight='bold')
                             ))
                             fig_comp_exp.add_trace(go.Bar(
                                 x=df_bar_comp_exp['Display_Label'], y=df_bar_comp_exp['合計績效%'], 
                                 name='合計績效% (Actual)', marker_color='#F59E0B',
-                                text=df_bar_comp_exp['合計績效%'].apply(lambda x: f'{x:.1f}%'),
-                                textposition='auto'
+                                text=text_actual, textposition='auto', textfont=dict(color='black', weight='bold')
                             ))
+                            
+                            # CỐ ĐỊNH CHIỀU CAO (height=550) ĐỂ BẢO VỆ BIỂU ĐỒ KHI IN PDF
+                            num_items = len(df_bar_comp_exp)
+                            dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
                             
                             fig_comp_exp.update_layout(
                                 **common_layout, 
                                 barmode='group', 
+                                height=550, 
+                                bargap=dynamic_bargap,
                                 title=f"<b>Line {line} - 低設定績效塗料對比</b>", 
-                                xaxis_tickangle=-45
+                                xaxis=dict(title="<b>塗料編號 & 用途</b>", tickangle=0, automargin=True),
+                                yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(100, df_bar_comp_exp['設定績效%'].max() + 15)]),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                             )
                             fig_comp_exp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
+                            fig_comp_exp.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Threshold</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="#DC2626", size=13, weight="bold"))
                             
-                            html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
+                            # Đổi include_plotlyjs=False 
+                            html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs=False)
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無符合低效塗料條件的數據。</p>"
                         html_content += "</div>"
-                        # --- 2. PARETO CHART ---
+                        
+                        # --- 3. PARETO CHART ---
                         html_content += "<div class='keep-together'>"
                         html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                         pareto_df_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
@@ -671,21 +649,16 @@ if uploaded_file is not None:
                             fig_pareto_exp.add_trace(go.Bar(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                             fig_pareto_exp.add_trace(go.Scatter(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                             
-                            fig_pareto_exp.update_layout(**common_layout)
-                            fig_pareto_exp.update_layout(
-                                xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
-                                yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
-                                yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                                height=650, title=f"<b>Line {line} - Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
-                                showlegend=True, margin=dict(b=160)
-                            )
-                            html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
-                            html_content += "</div>"
+                            fig_pareto_exp.update_layout(**common_layout, height=650, title=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>")
+                            fig_pareto_exp.update_layout(xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True), yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"), yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'), showlegend=True, margin=dict(b=160))
+                            
+                            # Đổi include_plotlyjs=False
+                            html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs=False)
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
-                            html_content += "</div>"
+                        html_content += "</div>"
 
-                        # --- 3. TOP 10 TABLE ---
+                        # --- 4. TOP 10 TABLE ---
                         html_content += "<div class='keep-together'>"
                         html_content += f"<h3>📋 Top 10 嚴重超耗塗料清單 (Top 10 Over-consumption Table)</h3>"
                         over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 200].copy()
@@ -700,10 +673,9 @@ if uploaded_file is not None:
                             
                             html_table = top10_table.to_html(index=False, classes='styled-table', escape=False)
                             html_content += html_table
-                            html_content += "</div>"
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
-                            html_content += "</div>"
+                        html_content += "</div>"
                         
                     html_content += "</div></body></html>"
                     st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{latest_month}.html", mime="text/html")
