@@ -619,7 +619,47 @@ if uploaded_file is not None:
                             html_content += "<div class='keep-together'>"
                             html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                             html_content += "</div>"
+                        # --- 4. NEW: Theoretical vs Actual Performance Chart (Export) ---
+                        html_content += "<div class='keep-together'>"
+                        html_content += f"<h3>⚖️ Line {line} - 低設定績效塗料: 理論 vs 實際 (設定績效 <= 90% 且 實際 < 理論)</h3>"
                         
+                        # Filter dữ liệu đúng như điều kiện của Tab 7
+                        criteria = (df_line['設定績效%'] <= 90) & (df_line['合計績效%'] < df_line['設定績效%'])
+                        comp_df_line = df_line[criteria].dropna(subset=['設定績效%', '合計績效%'])
+                        
+                        if not comp_df_line.empty:
+                            # Group dữ liệu để hiển thị
+                            df_bar_comp_exp = comp_df_line.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
+                            df_bar_comp_exp['Display_Label'] = df_bar_comp_exp['塗料編號'] + '<br>(' + df_bar_comp_exp['用途'] + ')'
+                            
+                            fig_comp_exp = go.Figure()
+                            fig_comp_exp.add_trace(go.Bar(
+                                x=df_bar_comp_exp['Display_Label'], 
+                                y=df_bar_comp_exp['設定績效%'], 
+                                name='設定績效% (Theoretical)', 
+                                marker_color='#6D28D9'
+                            ))
+                            fig_comp_exp.add_trace(go.Bar(
+                                x=df_bar_comp_exp['Display_Label'], 
+                                y=df_bar_comp_exp['合計績效%'], 
+                                name='合計績效% (Actual)', 
+                                marker_color='#F59E0B'
+                            ))
+                            
+                            # Layout báo cáo
+                            fig_comp_exp.update_layout(
+                                **common_layout, 
+                                barmode='group', 
+                                title=f"<b>Line {line} - 低設定績效塗料對比</b>", 
+                                xaxis_tickangle=-45
+                            )
+                            # Giữ đường kẻ 90%
+                            fig_comp_exp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
+                            
+                            html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
+                        else:
+                            html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無符合低效塗料條件的數據。</p>"
+                        html_content += "</div>"
                         # --- 2. PARETO CHART ---
                         html_content += "<div class='keep-together'>"
                         html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
