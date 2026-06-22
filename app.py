@@ -461,36 +461,45 @@ if uploaded_file is not None:
             else:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
+        # ==========================================
         # [NEW TAB 8: GLOBAL PERFORMANCE GAP (ALL DATA)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效落差分析 (實際績效% - 設定績效%)")
-            st.info("💡 此圖表顯示「所有塗料」的實際績效與設定績效的落差。紅柱代表未達標 (實際低於設定)，綠柱代表達標或超標 (實際大於等於設定)。")
+            st.info("💡 此圖表顯示「所有塗料」的實際績效與設定績效的落差。紅柱代表未達標，綠柱代表達標或超標。游標移至柱狀圖上可查看詳細的「理論」與「實際」數值。")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
                 
                 if not gap_df.empty:
-                    # Gom nhóm theo mã sơn và công dụng (giống tab 7)
+                    # Gom nhóm theo mã sơn và công dụng
                     df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                     
-                    # Tính toán độ chênh lệch (Actual - Theoretical)
+                    # Tính toán độ chênh lệch
                     df_gap_comp['績效落差%'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
                     df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
                     
-                    # Sắp xếp từ kém nhất (âm nhiều nhất) đến tốt nhất (dương nhiều nhất)
+                    # Sắp xếp từ kém nhất (âm nhiều nhất) đến tốt nhất
                     df_gap_comp = df_gap_comp.sort_values(by='績效落差%')
                     
-                    # Phân loại màu sắc: Âm = Đỏ, Dương = Xanh
+                    # Phân loại màu sắc
                     df_gap_comp['狀態'] = np.where(df_gap_comp['績效落差%'] >= 0, '達標/超標 (>=0)', '未達標 (<0)')
                     
+                    # --- ĐÃ THÊM: hover_data để hiển thị chi tiết Lý thuyết & Thực tế khi rê chuột ---
                     fig_gap = px.bar(
                         df_gap_comp, 
                         x='Display_Label', 
                         y='績效落差%', 
                         color='狀態',
                         color_discrete_map={'達標/超標 (>=0)': '#10B981', '未達標 (<0)': '#EF4444'},
-                        text=df_gap_comp['績效落差%'].apply(lambda x: f"{x:+.1f}%") # Thêm dấu +/- trước số
+                        text=df_gap_comp['績效落差%'].apply(lambda x: f"{x:+.1f}%"),
+                        hover_data={
+                            'Display_Label': False, 
+                            '狀態': False,
+                            '設定績效%': ':.1f', # Hiệu suất lý thuyết
+                            '合計績效%': ':.1f', # Hiệu suất thực tế
+                            '績效落差%': ':.1f'  # Mức chênh lệch
+                        }
                     )
                     
                     fig_gap.update_traces(
@@ -510,7 +519,7 @@ if uploaded_file is not None:
                         margin=dict(b=120, t=80)
                     )
                     
-                    # Thêm đường line đen ở mốc 0 để phân định rõ ràng
+                    # Đường phân cách mốc 0
                     fig_gap.add_hline(y=0, line_width=2, line_color="black")
                     
                     st.plotly_chart(fig_gap, use_container_width=True)
@@ -518,9 +527,6 @@ if uploaded_file is not None:
                     st.success("🎉 目前沒有足夠的數據可供分析。")
             else:
                 st.warning("⚠️ 找不到「設定績效%」欄位。")
-        # ==========================================
-        # ==========================================
-        # ==========================================
         # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
