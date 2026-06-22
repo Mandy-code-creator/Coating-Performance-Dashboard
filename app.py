@@ -385,12 +385,12 @@ if uploaded_file is not None:
         # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE]
         # ==========================================
         with tab_comp:
-            st.subheader("7. 理論績效 vs 實際績效對比 (設定績效 <= 85% 且 實際 < 理論)")
-            st.info("💡 此圖表僅顯示「設定績效%」小於或等於 85% 且「合計績效%」低於設定績效的塗料。(Only displaying items where Theoretical <= 85% AND Actual < Theoretical)")
+            st.subheader("7. 理論績效 vs 實際績效對比 (設定績效 <= 90% 且 實際 < 理論)")
+            st.info("💡 此圖表僅顯示「設定績效%」小於或等於 90% 且「合計績效%」低於設定績效的塗料。(Only displaying items where Theoretical <= 90% AND Actual < Theoretical)")
 
             if '設定績效%' in filtered_df.columns:
-                # Điều kiện lọc kép: Lý thuyết <= 85 VÀ Thực tế < Lý thuyết
-                criteria = (filtered_df['設定績效%'] <= 85) & (filtered_df['合計績效%'] < filtered_df['設定績效%'])
+                # Điều kiện lọc kép: Lý thuyết <= 90 VÀ Thực tế < Lý thuyết
+                criteria = (filtered_df['設定績效%'] <= 90) & (filtered_df['合計績效%'] < filtered_df['設定績效%'])
                 comp_df = filtered_df[criteria].dropna(subset=['設定績效%', '合計績效%'])
                 
                 if not comp_df.empty:
@@ -446,11 +446,11 @@ if uploaded_file is not None:
                         )
                     )
 
-                    # ĐƯỜNG KẺ NGANG 85%
-                    fig_comp.add_hline(y=85, line_dash="dash", line_color="#DC2626", line_width=2)
+                    # ĐƯỜNG KẺ NGANG 90%
+                    fig_comp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_comp.add_annotation(
-                        x=1, y=85, xref="paper", yref="y", 
-                        text="<b>85% Threshold</b>", 
+                        x=1, y=90, xref="paper", yref="y", 
+                        text="<b>90% Threshold</b>", 
                         showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
                         font=dict(color="#DC2626", size=13, weight="bold")
                     )
