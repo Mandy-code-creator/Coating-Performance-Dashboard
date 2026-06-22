@@ -463,6 +463,7 @@ if uploaded_file is not None:
 
         # ==========================================
         # ==========================================
+        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
@@ -541,6 +542,8 @@ if uploaded_file is not None:
                             seq_map_line = {code: i+1 for i, code in enumerate(sort_order_line)}
                             plot_df_line['塗料序號'] = plot_df_line['塗料編號'].map(seq_map_line)
                             
+                            total_paints_line = len(sort_order_line)
+                            
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
                                 symbol='用途', symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
@@ -581,7 +584,6 @@ if uploaded_file is not None:
                             fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                             
                             html_content += "<div class='keep-together'>"
-                            # Đổi include_plotlyjs=False vì đã nhúng 1 lần ở <head>
                             html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
                             html_content += "</div>"
                             
@@ -613,12 +615,12 @@ if uploaded_file is not None:
                                 text=text_actual, textposition='auto', textfont=dict(color='black', weight='bold')
                             ))
                             
-                            # CỐ ĐỊNH CHIỀU CAO (height=550) ĐỂ BẢO VỆ BIỂU ĐỒ KHI IN PDF
+                            # CỐ ĐỊNH CHIỀU CAO ĐỂ BẢO VỆ BIỂU ĐỒ KHI IN PDF
                             num_items = len(df_bar_comp_exp)
                             dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
                             
+                            fig_comp_exp.update_layout(**common_layout)
                             fig_comp_exp.update_layout(
-                                **common_layout, 
                                 barmode='group', 
                                 height=550, 
                                 bargap=dynamic_bargap,
@@ -630,7 +632,6 @@ if uploaded_file is not None:
                             fig_comp_exp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
                             fig_comp_exp.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Threshold</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="#DC2626", size=13, weight="bold"))
                             
-                            # Đổi include_plotlyjs=False 
                             html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs=False)
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無符合低效塗料條件的數據。</p>"
@@ -652,7 +653,6 @@ if uploaded_file is not None:
                             fig_pareto_exp.update_layout(**common_layout, height=650, title=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>")
                             fig_pareto_exp.update_layout(xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True), yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"), yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'), showlegend=True, margin=dict(b=160))
                             
-                            # Đổi include_plotlyjs=False
                             html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs=False)
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
