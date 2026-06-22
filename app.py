@@ -380,14 +380,17 @@ if uploaded_file is not None:
                 st.plotly_chart(fig_dev, use_container_width=True)
 
         # ==========================================
-        # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE <= 85%]
+        # ==========================================
+        # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE]
         # ==========================================
         with tab_comp:
-            st.subheader("7. 理論績效 vs 實際績效對比 (設定績效 <= 85%)")
-            st.info("💡 此圖表僅顯示「設定績效%」小於或等於 85% 的塗料，藉此對比其實際達成的「合計績效%」。 (Only displaying items with theoretical performance <= 85%)")
+            st.subheader("7. 理論績效 vs 實際績效對比 (設定績效 <= 85% 且 實際 < 理論)")
+            st.info("💡 此圖表僅顯示「設定績效%」小於或等於 85% 且「合計績效%」低於設定績效的塗料。(Only displaying items where Theoretical <= 85% AND Actual < Theoretical)")
 
             if '設定績效%' in filtered_df.columns:
-                comp_df = filtered_df[filtered_df['設定績效%'] <= 85].dropna(subset=['設定績效%', '合計績效%'])
+                # Điều kiện lọc kép: Lý thuyết <= 85 VÀ Thực tế < Lý thuyết
+                criteria = (filtered_df['設定績效%'] <= 85) & (filtered_df['合計績效%'] < filtered_df['設定績效%'])
+                comp_df = filtered_df[criteria].dropna(subset=['設定績效%', '合計績效%'])
                 
                 if not comp_df.empty:
                     df_bar_comp = comp_df.groupby('塗料編號')[['設定績效%', '合計績效%']].mean().reset_index()
@@ -399,24 +402,27 @@ if uploaded_file is not None:
                     fig_comp.update_layout(**common_layout)
                     fig_comp.update_layout(
                         barmode='group', height=550,
-                        title="<b>低設定績效塗料: 理論 vs 實際表現 (Theoretical vs Actual for <= 85%)</b>",
+                        title="<b>低設定績效塗料: 理論 vs 實際表現 (Theoretical vs Actual)</b>",
                         xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
                         yaxis=dict(title="<b>績效 (%)</b>"),
                         margin=dict(b=160),
                         legend=dict(x=0.01, y=0.99, bgcolor='rgba(255, 255, 255, 0.8)')
                     )
 
-                    fig_comp.add_hline(y=85, line_dash="dash", line_color="red", line_width=2, annotation_text="85% Threshold", annotation_position="top right")
+                    # GIỮ LẠI ĐƯỜNG KẺ NGANG 85%
+                    fig_comp.add_hline(y=85, line_dash="dash", line_color="red", line_width=2)
+                    fig_comp.add_annotation(
+                        x=1, y=85, xref="paper", yref="y", 
+                        text="<b>85% Threshold</b>", 
+                        showarrow=False, xanchor="right", yanchor="bottom", 
+                        font=dict(color="red", size=14, weight="bold")
+                    )
 
                     st.plotly_chart(fig_comp, use_container_width=True)
                 else:
-                    st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 85% 的塗料。(No items found with theoretical performance <= 85%)")
+                    st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 85% 且實際表現更低的塗料。(Không có mã sơn nào vi phạm cả 2 điều kiện)")
             else:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
-
-
-        with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
-            st.dataframe(filtered_df)
 
         # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
