@@ -381,7 +381,6 @@ if uploaded_file is not None:
 
         # ==========================================
         # ==========================================
-        # ==========================================
         # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE]
         # ==========================================
         with tab_comp:
@@ -389,34 +388,36 @@ if uploaded_file is not None:
             st.info("💡 此圖表僅顯示「設定績效%」小於或等於 90% 且「合計績效%」低於設定績效的塗料。(Only displaying items where Theoretical <= 90% AND Actual < Theoretical)")
 
             if '設定績效%' in filtered_df.columns:
-                # Điều kiện lọc kép: Lý thuyết <= 90 VÀ Thực tế < Lý thuyết
+                # Lọc kép: Lý thuyết <= 90 VÀ Thực tế < Lý thuyết
                 criteria = (filtered_df['設定績效%'] <= 90) & (filtered_df['合計績效%'] < filtered_df['設定績效%'])
                 comp_df = filtered_df[criteria].dropna(subset=['設定績效%', '合計績效%'])
                 
                 if not comp_df.empty:
-                    df_bar_comp = comp_df.groupby('塗料編號')[['設定績效%', '合計績效%']].mean().reset_index()
+                    # THÊM '用途' VÀO GROUPBY ĐỂ KHÔNG BỊ MẤT THÔNG TIN PHÂN LOẠI
+                    df_bar_comp = comp_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
+
+                    # TẠO NHÃN TRỤC X MỚI: MÃ SƠN + (PHÂN LOẠI)
+                    df_bar_comp['Display_Label'] = df_bar_comp['塗料編號'] + '<br>(' + df_bar_comp['用途'] + ')'
 
                     fig_comp = go.Figure()
                     
-                    # Cải thiện thiết kế cột và thêm Data Label (hiển thị số trực tiếp)
                     fig_comp.add_trace(go.Bar(
-                        x=df_bar_comp['塗料編號'], y=df_bar_comp['設定績效%'], 
+                        x=df_bar_comp['Display_Label'], y=df_bar_comp['設定績效%'], 
                         name='設定績效% (Theoretical)', 
-                        marker_color='#6D28D9', # Màu tím hiện đại hơn
+                        marker_color='#6D28D9',
                         marker_line_color='black', marker_line_width=1.2,
                         text=df_bar_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
                         textposition='auto'
                     ))
                     fig_comp.add_trace(go.Bar(
-                        x=df_bar_comp['塗料編號'], y=df_bar_comp['合計績效%'], 
+                        x=df_bar_comp['Display_Label'], y=df_bar_comp['合計績效%'], 
                         name='合計績效% (Actual)', 
-                        marker_color='#F59E0B', # Màu cam sáng dễ nhìn hơn
+                        marker_color='#F59E0B',
                         marker_line_color='black', marker_line_width=1.2,
                         text=df_bar_comp['合計績效%'].apply(lambda x: f'{x:.1f}%'),
                         textposition='auto'
                     ))
 
-                    # THUẬT TOÁN XỬ LÝ CỘT QUÁ TO: Tự động điều chỉnh khoảng cách (bargap) dựa trên số lượng dữ liệu
                     num_items = len(df_bar_comp)
                     dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
 
@@ -428,16 +429,15 @@ if uploaded_file is not None:
                         bargroupgap=0.05,
                         title="<b>低設定績效塗料: 理論 vs 實際表現 (Theoretical vs Actual)</b>",
                         xaxis=dict(
-                            title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=20), 
-                            tickangle=-45, # Chữ nghiêng 45 độ sẽ thanh thoát hơn 90 độ
+                            title=dict(text="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", standoff=20), 
+                            tickangle=0, # Chữ sẽ nằm ngang, tự động xuống dòng phân loại
                             automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True
                         ),
                         yaxis=dict(
                             title="<b>績效 (%)</b>",
-                            range=[0, max(100, df_bar_comp['設定績效%'].max() + 15)] # Đảm bảo trục Y đủ cao
+                            range=[0, max(100, df_bar_comp['設定績效%'].max() + 15)] 
                         ),
                         margin=dict(b=120, t=80),
-                        # Chuyển Legend lên trên cùng nằm ngang để không đè vào cột biểu đồ
                         legend=dict(
                             orientation="h",
                             yanchor="bottom", y=1.02, 
@@ -446,7 +446,7 @@ if uploaded_file is not None:
                         )
                     )
 
-                    # ĐƯỜNG KẺ NGANG 90%
+                    # CẬP NHẬT ĐƯỜNG KẺ NGANG 90%
                     fig_comp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_comp.add_annotation(
                         x=1, y=90, xref="paper", yref="y", 
@@ -457,7 +457,7 @@ if uploaded_file is not None:
 
                     st.plotly_chart(fig_comp, use_container_width=True)
                 else:
-                    st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 85% 且實際表現更低的塗料。(Không có mã sơn nào vi phạm cả 2 điều kiện)")
+                    st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 90% 且實際表現更低的塗料。(No items match the criteria)")
             else:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
 
