@@ -600,22 +600,23 @@ if uploaded_file is not None:
                             
                             fig_comp_exp = go.Figure()
                             
-                            # TẠO TEXT CHUẨN ĐỂ PDF KHÔNG BỊ MẤT NHÃN %
                             text_theo = [f"{val:.1f}%" for val in df_bar_comp_exp['設定績效%']]
                             text_actual = [f"{val:.1f}%" for val in df_bar_comp_exp['合計績效%']]
                             
+                            # CÚ CHỐT: Thêm .tolist() vào x và y để Plotly không bị lỗi JSON khi xuất HTML
                             fig_comp_exp.add_trace(go.Bar(
-                                x=df_bar_comp_exp['Display_Label'], y=df_bar_comp_exp['設定績效%'], 
+                                x=df_bar_comp_exp['Display_Label'].tolist(), 
+                                y=df_bar_comp_exp['設定績效%'].tolist(), 
                                 name='設定績效% (Theoretical)', marker_color='#6D28D9',
                                 text=text_theo, textposition='auto', textfont=dict(color='white', weight='bold')
                             ))
                             fig_comp_exp.add_trace(go.Bar(
-                                x=df_bar_comp_exp['Display_Label'], y=df_bar_comp_exp['合計績效%'], 
+                                x=df_bar_comp_exp['Display_Label'].tolist(), 
+                                y=df_bar_comp_exp['合計績效%'].tolist(), 
                                 name='合計績效% (Actual)', marker_color='#F59E0B',
                                 text=text_actual, textposition='auto', textfont=dict(color='black', weight='bold')
                             ))
                             
-                            # CỐ ĐỊNH CHIỀU CAO ĐỂ BẢO VỆ BIỂU ĐỒ KHI IN PDF
                             num_items = len(df_bar_comp_exp)
                             dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
                             
@@ -632,7 +633,8 @@ if uploaded_file is not None:
                             fig_comp_exp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
                             fig_comp_exp.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Threshold</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="#DC2626", size=13, weight="bold"))
                             
-                            html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs=False)
+                            # Đổi lại thành 'cdn' để đảm bảo 100% tỷ lệ render khi in ấn
+                            html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無符合低效塗料條件的數據。</p>"
                         html_content += "</div>"
