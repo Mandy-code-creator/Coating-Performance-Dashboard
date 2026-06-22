@@ -469,6 +469,13 @@ if uploaded_file is not None:
         st.sidebar.markdown("---")
         st.sidebar.header("📥 [4] 快速匯出報表 (HTML Export)")
         
+        # --- [TÍNH NĂNG MỚI]: CHỌN THÁNG XUẤT BÁO CÁO ---
+        available_export_months = sorted(df['年月'].dropna().unique(), reverse=True)
+        export_month_sel = st.sidebar.selectbox(
+            "選擇匯出月份 (Select Export Month):", 
+            options=available_export_months
+        )
+        
         report_view_sel = st.sidebar.radio(
             "選擇報表內容 (Select Report Content):",
             ["View 1: All Items", "View 2: Deviation > 200"]
@@ -476,9 +483,10 @@ if uploaded_file is not None:
         
         if st.sidebar.button("📄 產生 HTML 報表 (Generate Report)"):
             try:
-                latest_month = df['年月'].dropna().max()
+                # --- ĐÃ SỬA: SỬ DỤNG THÁNG DO NGƯỜI DÙNG CHỌN THAY VÌ THÁNG MỚI NHẤT ---
+                target_month = export_month_sel 
                 target_usages = ['正面漆', '背面漆'] 
-                df_word = df[(df['用途'].isin(target_usages)) & (df['年月'] == latest_month)].copy()
+                df_word = df[(df['用途'].isin(target_usages)) & (df['年月'] == target_month)].copy()
                 
                 if "View 2" in report_view_sel:
                     df_word = df_word[df_word['Δ耗用 (Deviation)'] > 200]
@@ -487,14 +495,14 @@ if uploaded_file is not None:
                     report_title_suffix = "(Full Report)"
 
                 if df_word.empty:
-                    st.sidebar.error("❌ 找不到最新月份數據。(No data for the latest month)")
+                    st.sidebar.error(f"❌ 找不到 {target_month} 的相關數據。(No data for {target_month})")
                 else:
                     lines = sorted(df_word['線別'].unique())
                     html_content = f"""
                     <html>
                     <head>
                         <meta charset='UTF-8'>
-                        <title>Performance Report - {latest_month}</title>
+                        <title>Performance Report - {target_month}</title>
                         <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
                         <style>
                             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }}
@@ -516,7 +524,6 @@ if uploaded_file is not None:
                             .styled-table tbody tr:nth-of-type(even) {{ background-color: #f3f3f3; }}
                             .styled-table tbody tr:last-of-type {{ border-bottom: 2px solid #009879; }}
                             
-                            /* TỐI ƯU HÓA: CSS dành riêng cho Print PDF */
                             @media print {{
                                 body {{ background-color: white; -webkit-print-color-adjust: exact; }}
                                 .container {{ box-shadow: none; padding: 0; max-width: 100%; }}
@@ -526,7 +533,7 @@ if uploaded_file is not None:
                     </head>
                     <body>
                     <div class="container">
-                        <h1>📊 塗料生產績效報告 - {latest_month} {report_title_suffix}</h1>
+                        <h1>📊 塗料生產績效報告 - {target_month} {report_title_suffix}</h1>
                     """
                     
                     for line in lines:
@@ -541,8 +548,6 @@ if uploaded_file is not None:
                             sort_order_line = plot_df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                             seq_map_line = {code: i+1 for i, code in enumerate(sort_order_line)}
                             plot_df_line['塗料序號'] = plot_df_line['塗料編號'].map(seq_map_line)
-                            
-                            total_paints_line = len(sort_order_line)
                             
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
@@ -603,7 +608,6 @@ if uploaded_file is not None:
                             text_theo = [f"{val:.1f}%" for val in df_bar_comp_exp['設定績效%']]
                             text_actual = [f"{val:.1f}%" for val in df_bar_comp_exp['合計績效%']]
                             
-                            # CÚ CHỐT: Thêm .tolist() vào x và y để Plotly không bị lỗi JSON khi xuất HTML
                             fig_comp_exp.add_trace(go.Bar(
                                 x=df_bar_comp_exp['Display_Label'].tolist(), 
                                 y=df_bar_comp_exp['設定績效%'].tolist(), 
@@ -626,14 +630,13 @@ if uploaded_file is not None:
                                 height=550, 
                                 bargap=dynamic_bargap,
                                 title=f"<b>Line {line} - 低設定績效塗料對比</b>", 
-                                xaxis=dict(title="<b>塗料編號</b>", tickangle=0, automargin=True),
+                                xaxis=dict(title="<b>塗料編號 & 用途</b>", tickangle=0, automargin=True),
                                 yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(100, df_bar_comp_exp['設定績效%'].max() + 15)]),
                                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                             )
                             fig_comp_exp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
                             fig_comp_exp.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Threshold</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="#DC2626", size=13, weight="bold"))
                             
-                            # Đổi lại thành 'cdn' để đảm bảo 100% tỷ lệ render khi in ấn
                             html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
                         else:
                             html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無符合低效塗料條件的數據。</p>"
@@ -680,7 +683,7 @@ if uploaded_file is not None:
                         html_content += "</div>"
                         
                     html_content += "</div></body></html>"
-                    st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{latest_month}.html", mime="text/html")
+                    st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{target_month}.html", mime="text/html")
             except Exception as e:
                 st.sidebar.error(f"Error: {e}")
 
