@@ -245,12 +245,10 @@ if uploaded_file is not None:
             """)
             
             if not filtered_df.empty:
-                # 1. LỌC DỮ LIỆU TRƯỚC
                 plot_df = filtered_df.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                 plot_df = plot_df[plot_df['合計理論耗用'] > 0] 
                 
                 if not plot_df.empty:
-                    # 2. ĐÁNH SỐ THỨ TỰ (項次) SAU KHI ĐÃ LỌC
                     sort_order_plot = plot_df.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                     seq_map = {code: i+1 for i, code in enumerate(sort_order_plot)}
                     plot_df['塗料序號'] = plot_df['塗料編號'].map(seq_map)
@@ -261,22 +259,19 @@ if uploaded_file is not None:
                         size='合計理論耗用', size_max=30,
                         category_orders={"績效等級": labels_global},
                         hover_name='塗料編號',
-                        # THÊM ĐOẠN HOVER_DATA NÀY VÀO:
                         hover_data={
-                            '塗料序號': False,                     # Ẩn số thứ tự (trục X) cho đỡ rối
-                            '合計績效%': ':.2f',                  # Hiển thị % với 2 số thập phân
-                            '合計理論耗用': ':,.0f',               # Theoretical Value (Giá trị lý thuyết)
-                            'Δ耗用 (Deviation)': ':,.0f'         # Lượng hao hụt so với lý thuyết
+                            '塗料序號': False,
+                            '合計績效%': ':.2f',
+                            '合計理論耗用': ':,.0f',
+                            'Δ耗用 (Deviation)': ':,.0f'
                         }
                     )
 
-                    # CHỈ LỌC CÁC MÃ SƠN CÓ HIỆU SUẤT < 90%
                     needs_improvement_df = plot_df[plot_df['合計績效%'] < 90]
                     top5_dev = needs_improvement_df.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                     
-                    # Vẽ mũi tên đỏ chỉ thẳng vào bong bóng trên biểu đồ (Đã sửa theo yêu cầu Sếp: hiển thị 4 ký tự cuối)
                     for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
-                        short_code = str(row['塗料編號'])[-4:]  # Lấy 4 ký tự cuối
+                        short_code = str(row['塗料編號'])[-4:]
                         fig.add_annotation(
                             x=row['塗料序號'],       
                             y=row['合計績效%'],       
@@ -295,7 +290,6 @@ if uploaded_file is not None:
                             borderpad=3
                         )
                     
-                    # Tạo nhãn chuỗi HTML cho bảng danh sách Top 5 (Đã xóa tiêu đề và "Top X")
                     if not top5_dev.empty:
                         top5_text = ""
                         for rank, (_, row) in enumerate(top5_dev.iterrows(), start=1):
@@ -305,7 +299,6 @@ if uploaded_file is not None:
                     else:
                         top5_text = "<span style='color:#008000; font-size:14px'><b>🎉 績效良好<br>無需改善</b></span>"
 
-                    # Nhúng thẳng nhãn bảng vào layout biểu đồ Plotly
                     fig.add_annotation(
                         x=1.015, y=0.75,  
                         xref="paper", yref="paper",
@@ -335,10 +328,9 @@ if uploaded_file is not None:
                     fig.update_layout(
                         height=700, 
                         title="<b>全廠塗料績效分佈圖 (Overall Performance Scatter)</b>",
-                        # Đã sửa lại trục X thành 項次 theo yêu cầu Sếp
                         xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1),
                         yaxis_title="<b>合計績效 (%)</b>",
-                        margin=dict(r=150) # Tăng biên phải để chứa bảng dữ liệu không bị lấp
+                        margin=dict(r=150)
                     )
                     fig.update_traces(marker=dict(line=dict(width=1, color='black')))
                     st.plotly_chart(fig, use_container_width=True)
@@ -386,6 +378,42 @@ if uploaded_file is not None:
                 )
                 fig_dev.update_traces(marker=dict(line=dict(width=1.5, color='black')))
                 st.plotly_chart(fig_dev, use_container_width=True)
+
+        # ==========================================
+        # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE <= 85%]
+        # ==========================================
+        with tab_comp:
+            st.subheader("7. 理論績效 vs 實際績效對比 (設定績效 <= 85%)")
+            st.info("💡 此圖表僅顯示「設定績效%」小於或等於 85% 的塗料，藉此對比其實際達成的「合計績效%」。 (Only displaying items with theoretical performance <= 85%)")
+
+            if '設定績效%' in filtered_df.columns:
+                comp_df = filtered_df[filtered_df['設定績效%'] <= 85].dropna(subset=['設定績效%', '合計績效%'])
+                
+                if not comp_df.empty:
+                    df_bar_comp = comp_df.groupby('塗料編號')[['設定績效%', '合計績效%']].mean().reset_index()
+
+                    fig_comp = go.Figure()
+                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['設定績效%'], name='設定績效% (Theoretical)', marker_color='#8e44ad', marker_line_color='black', marker_line_width=1.5))
+                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['合計績效%'], name='合計績效% (Actual)', marker_color='#f39c12', marker_line_color='black', marker_line_width=1.5))
+
+                    fig_comp.update_layout(**common_layout)
+                    fig_comp.update_layout(
+                        barmode='group', height=550,
+                        title="<b>低設定績效塗料: 理論 vs 實際表現 (Theoretical vs Actual for <= 85%)</b>",
+                        xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
+                        yaxis=dict(title="<b>績效 (%)</b>"),
+                        margin=dict(b=160),
+                        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255, 255, 255, 0.8)')
+                    )
+
+                    fig_comp.add_hline(y=85, line_dash="dash", line_color="red", line_width=2, annotation_text="85% Threshold", annotation_position="top right")
+
+                    st.plotly_chart(fig_comp, use_container_width=True)
+                else:
+                    st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 85% 的塗料。(No items found with theoretical performance <= 85%)")
+            else:
+                st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
+
 
         with st.expander("🔍 檢視底層明細資料 (Raw Data View)"):
             st.dataframe(filtered_df)
@@ -453,36 +481,31 @@ if uploaded_file is not None:
                         df_line = df_word[df_word['線別'] == line].copy()
                         
                         # --- 1. SCATTER PLOT (Export Version) ---
-                        # 1. LỌC DỮ LIỆU TRƯỚC (Loại bỏ giá trị rỗng và Theoretical Value <= 0)
                         plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                         plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                         
                         if not plot_df_line.empty:
-                            # 2. LẤY DANH SÁCH VÀ ĐÁNH SỐ THỨ TỰ (項次) TỪ DỮ LIỆU ĐÃ LỌC SẠCH
                             sort_order_line = plot_df_line.sort_values(by=['Sort_Group', '塗料編號'])['塗料編號'].unique().tolist()
                             seq_map_line = {code: i+1 for i, code in enumerate(sort_order_line)}
                             plot_df_line['塗料序號'] = plot_df_line['塗料編號'].map(seq_map_line)
                             
-                            # Cập nhật thêm biến total_paints_line cho các logic bên dưới nếu có dùng
                             total_paints_line = len(sort_order_line)
                             
                             fig_line = px.scatter(
                                 plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
                                 symbol='用途', 
                                 symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
-                                # SỬA LẠI ĐOẠN HOVER_DATA NÀY:
                                 hover_data={
                                     '塗料序號': False,
                                     '用途': True, 
                                     '合計績效%': ':.2f',
-                                    '合計理論耗用': ':,.0f',        # Theoretical Value
-                                    'Δ耗用 (Deviation)': ':,.0f'  # Lượng hao hụt (siêu tiêu hao)
+                                    '合計理論耗用': ':,.0f',        
+                                    'Δ耗用 (Deviation)': ':,.0f'  
                                 }, 
                                 color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                 category_orders={"績效等級": labels_global}, hover_name='塗料編號'
                             )
 
-                            # CHỈ LỌC CÁC MÃ SƠN CÓ HIỆU SUẤT < 90% (CHO BẢN XUẤT HTML)
                             needs_improve_line = plot_df_line[plot_df_line['合計績效%'] < 90]
                             top5_dev_line = needs_improve_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(5)
                             
@@ -610,39 +633,3 @@ if uploaded_file is not None:
         st.error(f"System Error：{e}")
 else:
     st.info("👈 請上傳 MES 數據檔案。(Please upload MES Data file)")
-# ==========================================
-        # [NEW TAB: THEORETICAL VS ACTUAL PERFORMANCE <= 85%]
-        # ==========================================
-        with tab_comp:
-            st.subheader("7. 理論績效 vs 實際績效對比 (設定績效 <= 85%)")
-            st.info("💡 此圖表僅顯示「設定績效%」小於或等於 85% 的塗料，藉此對比其實際達成的「合計績效%」。 (Only displaying items with theoretical performance <= 85%)")
-
-            if '設定績效%' in filtered_df.columns:
-                # Filter for items where '設定績效%' <= 85
-                comp_df = filtered_df[filtered_df['設定績效%'] <= 85].dropna(subset=['設定績效%', '合計績效%'])
-                
-                if not comp_df.empty:
-                    df_bar_comp = comp_df.groupby('塗料編號')[['設定績效%', '合計績效%']].mean().reset_index()
-
-                    fig_comp = go.Figure()
-                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['設定績效%'], name='設定績效% (Theoretical)', marker_color='#8e44ad', marker_line_color='black', marker_line_width=1.5))
-                    fig_comp.add_trace(go.Bar(x=df_bar_comp['塗料編號'], y=df_bar_comp['合計績效%'], name='合計績效% (Actual)', marker_color='#f39c12', marker_line_color='black', marker_line_width=1.5))
-
-                    fig_comp.update_layout(**common_layout)
-                    fig_comp.update_layout(
-                        barmode='group', height=550,
-                        title="<b>低設定績效塗料: 理論 vs 實際表現 (Theoretical vs Actual for <= 85%)</b>",
-                        xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
-                        yaxis=dict(title="<b>績效 (%)</b>"),
-                        margin=dict(b=160),
-                        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255, 255, 255, 0.8)')
-                    )
-
-                    # 85% threshold line
-                    fig_comp.add_hline(y=85, line_dash="dash", line_color="red", line_width=2, annotation_text="85% Threshold", annotation_position="top right")
-
-                    st.plotly_chart(fig_comp, use_container_width=True)
-                else:
-                    st.success("🎉 在目前的篩選條件下，沒有「設定績效%」小於或等於 85% 的塗料。(No items found with theoretical performance <= 85%)")
-            else:
-                st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
