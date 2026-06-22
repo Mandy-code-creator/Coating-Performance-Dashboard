@@ -626,7 +626,7 @@ if uploaded_file is not None:
                                 height=550, 
                                 bargap=dynamic_bargap,
                                 title=f"<b>Line {line} - 低設定績效塗料對比</b>", 
-                                xaxis=dict(title="<b>塗料編號 & 用途</b>", tickangle=0, automargin=True),
+                                xaxis=dict(title="<b>塗料編號</b>", tickangle=0, automargin=True),
                                 yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(100, df_bar_comp_exp['設定績效%'].max() + 15)]),
                                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                             )
