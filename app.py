@@ -706,22 +706,33 @@ if uploaded_file is not None:
                                 else:
                                     top5_text_exp = "<span style='color:#008000; font-size:14px'><b>🎉 績效良好<br>無需改善</b></span>"
 
-                                fig_line.add_annotation(x=1.015, y=0.75, xref="paper", yref="paper", xanchor="left", yanchor="top", text=top5_text_exp, showarrow=False, align="left", bgcolor="#f9fbfd", bordercolor="#e6e6e6", borderwidth=1, borderpad=10)
+                                fig_line.add_annotation(x=1.02, y=0.9, xref="paper", yref="paper", xanchor="left", yanchor="top", text=top5_text_exp, showarrow=False, align="left", bgcolor="#f9fbfd", bordercolor="#e6e6e6", borderwidth=1, borderpad=10)
 
                                 y_min_exp = plot_df_line['合計績效%'].min() - 5
                                 y_max_exp = max(120, plot_df_line['合計績效%'].max() + 5)
                                 fig_line.update_yaxes(range=[y_min_exp, y_max_exp])
+                                
+                                # ĐÃ SỬA: Đặt range từ 0.5 đến max + 1.5 để ẩn đi số 0 và -1
+                                max_x_val = plot_df_line['塗料序號'].max()
+                                fig_line.update_xaxes(range=[0.5, max_x_val + 1.5])
                                 
                                 fig_line.add_hline(y=100, line_dash="dash", line_color="red", line_width=3)
                                 fig_line.add_hline(y=90, line_dash="dot", line_color="deepskyblue", line_width=2)
                                 fig_line.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                                 fig_line.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=8, font=dict(color="red", size=16, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
                                 
-                                fig_line.update_layout(**common_layout, height=600, title=dict(text=f"<b>Line {line} 績效概覽 (Performance Overview)</b>", x=0.5), xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), yaxis_title="<b>合計績效 (%)</b>", margin=dict(r=150))
+                                fig_line.update_layout(
+                                    **common_layout, 
+                                    height=650, 
+                                    title=dict(text=f"<b>Line {line} 績效概覽 (Performance Overview)</b>", x=0.5), 
+                                    xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), 
+                                    yaxis_title="<b>合計績效 (%)</b>", 
+                                    margin=dict(r=200, t=120), 
+                                    legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1)
+                                )
                                 fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                                 
-                                html_content += "<div class='keep-together'>"
-                                # ĐÃ SỬA: Đổi thành include_plotlyjs='cdn' để biểu đồ Scatter render được các bọt nước
+                                html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
                                 html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                                 html_content += "</div>"
                                 
@@ -835,7 +846,7 @@ if uploaded_file is not None:
                             html_content += "</div>"
                             
                             # --- 3. PARETO CHART ---
-                            html_content += "<div class='keep-together'>"
+                            html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
                             html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                             pareto_df_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                             if not pareto_df_exp.empty:
@@ -850,7 +861,6 @@ if uploaded_file is not None:
                                 fig_pareto_exp.update_layout(**common_layout, height=650, title=dict(text=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>", x=0.5))
                                 fig_pareto_exp.update_layout(xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True), yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"), yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'), showlegend=True, margin=dict(b=160))
                                 
-                                # ĐÃ SỬA: Đồng bộ luôn Pareto chart dùng cdn cho an toàn
                                 html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
                             else:
                                 html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
