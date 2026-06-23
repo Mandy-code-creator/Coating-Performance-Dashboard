@@ -618,17 +618,24 @@ if uploaded_file is not None:
                         report_title_suffix = "(Full Report)"
 
                     if df_word.empty:
-                        months_str_err = ", ".join(export_months_sel)
-                        st.sidebar.error(f"❌ 找不到 {months_str_err} 的相關數據。(No data for selected months)")
+                        st.sidebar.error("❌ 找不到所選月份的相關數據。(No data for selected months)")
                     else:
                         lines = sorted(df_word['線別'].unique())
-                        months_str_title = " & ".join(export_months_sel)
+                        
+                        # --- ĐÃ SỬA: Rút gọn tiêu đề báo cáo thành dạng Khoảng thời gian (Min ~ Max) ---
+                        sorted_sel_months = sorted(export_months_sel)
+                        if len(sorted_sel_months) > 1:
+                            months_str_title = f"{sorted_sel_months[0]} ~ {sorted_sel_months[-1]}"
+                            file_months_str = f"{sorted_sel_months[0]}_to_{sorted_sel_months[-1]}"
+                        else:
+                            months_str_title = sorted_sel_months[0]
+                            file_months_str = sorted_sel_months[0]
                         
                         html_content = f"""
                         <html>
                         <head>
                             <meta charset='UTF-8'>
-                            <title>Performance Report - {months_str_title}</title>
+                            <title>Performance Report - {file_months_str}</title>
                             <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
                             <style>
                                 body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }}
@@ -651,8 +658,8 @@ if uploaded_file is not None:
                                 .styled-table tbody tr:last-of-type {{ border-bottom: 2px solid #009879; }}
                                 
                                 @media print {{
-                                    body {{ background-color: white; -webkit-print-color-adjust: exact; }}
-                                    .container {{ box-shadow: none; padding: 0; max-width: 100%; }}
+                                    body {{ background-color: white; -webkit-print-color-adjust: exact; padding: 0; }}
+                                    .container {{ box-shadow: none; padding: 0; max-width: 100%; width: 100%; }}
                                     .keep-together {{ page-break-inside: avoid !important; }}
                                 }}
                             </style>
@@ -711,14 +718,14 @@ if uploaded_file is not None:
                                 fig_line.add_hline(y=110, line_dash="dot", line_color="deepskyblue", line_width=2)
                                 fig_line.add_annotation(x=0.99, y=100, xref="paper", yref="y", text="<b>🎯 Target: 100%</b>", showarrow=False, xanchor="right", yanchor="bottom", yshift=8, font=dict(color="red", size=16, weight="bold"), bgcolor="rgba(255,255,255,0.7)")
                                 
-                                fig_line.update_layout(**common_layout, height=600, title=f"<b>Line {line} 績效概覽 (Performance Overview)</b>", xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), yaxis_title="<b>合計績效 (%)</b>", margin=dict(r=150))
+                                fig_line.update_layout(**common_layout, height=600, title=dict(text=f"<b>Line {line} 績效概覽 (Performance Overview)</b>", x=0.5), xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), yaxis_title="<b>合計績效 (%)</b>", margin=dict(r=150))
                                 fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                                 
                                 html_content += "<div class='keep-together'>"
                                 html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
                                 html_content += "</div>"
                                 
-                            # --- 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Bullet Chart Export - PDF AUTO FIT) ---
+                            # --- 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Bullet Chart Export - FIXED OVERLAP) ---
                             html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
                             
                             comp_df_line = df_line.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -727,7 +734,9 @@ if uploaded_file is not None:
                                 df_bar_comp_exp = comp_df_line.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                                 
                                 df_bar_comp_exp['Gap'] = df_bar_comp_exp['合計績效%'] - df_bar_comp_exp['設定績效%']
-                                df_bar_comp_exp['Display_Label'] = df_bar_comp_exp['塗料編號'] + '<br>(' + df_bar_comp_exp['用途'] + ')'
+                                
+                                # ĐÃ SỬA: Xóa bỏ thẻ <br> để chữ nối liền, phù hợp khi xoay thẳng đứng -90 độ
+                                df_bar_comp_exp['Display_Label'] = df_bar_comp_exp['塗料編號'] + ' (' + df_bar_comp_exp['用途'] + ')'
                                 df_bar_comp_exp = df_bar_comp_exp.sort_values(by='Gap', ascending=True)
                                 
                                 act_colors = []
@@ -756,8 +765,8 @@ if uploaded_file is not None:
                                     text=act_labels,
                                     textposition='inside',
                                     insidetextanchor='middle',
-                                    textfont=dict(weight='bold', color='black', size=12),
-                                    width=0.45
+                                    textfont=dict(weight='bold', color='black', size=11),
+                                    width=0.5
                                 ))
                                 
                                 fig_comp_exp.add_trace(go.Scatter(
@@ -801,13 +810,14 @@ if uploaded_file is not None:
                                 fig_comp_exp.update_layout(**common_layout)
                                 fig_comp_exp.update_layout(
                                     barmode='group',
-                                    autosize=True, # ĐÃ SỬA: Bỏ width=dynamic_width, dùng autosize để tự fit 100% khi in PDF
-                                    height=600,
+                                    autosize=True, 
+                                    height=650,
                                     shapes=shapes,
                                     title=dict(text=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>", x=0.5, font=dict(size=18)),
                                     xaxis=dict(
                                         title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
-                                        tickangle=-45,
+                                        tickangle=-90, # ĐÃ SỬA: Xoay thẳng đứng hoàn toàn -90 độ để các nhãn đứng song song, không đâm vào nhau
+                                        tickfont=dict(size=10), # Giảm font chữ để tiết kiệm diện tích bề ngang
                                         automargin=True,
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
@@ -816,8 +826,8 @@ if uploaded_file is not None:
                                         range=[0, y_max_limit],
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
-                                    legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="right", x=1),
-                                    margin=dict(b=140, t=130, r=40, l=60) # Cân chỉnh lại lề cho bản in PDF
+                                    legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="right", x=1),
+                                    margin=dict(b=180, t=110, r=40, l=60) # ĐÃ SỬA: Tăng lề dưới (b=180) để chứa đủ chiều dài của chữ dựng đứng
                                 )
                                 
                                 html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
@@ -838,7 +848,7 @@ if uploaded_file is not None:
                                 fig_pareto_exp.add_trace(go.Bar(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                                 fig_pareto_exp.add_trace(go.Scatter(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                                 
-                                fig_pareto_exp.update_layout(**common_layout, height=650, title=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>")
+                                fig_pareto_exp.update_layout(**common_layout, height=650, title=dict(text=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>", x=0.5))
                                 fig_pareto_exp.update_layout(xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True), yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"), yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'), showlegend=True, margin=dict(b=160))
                                 
                                 html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs=False)
@@ -867,7 +877,6 @@ if uploaded_file is not None:
                             
                         html_content += "</div></body></html>"
                         
-                        file_months_str = "_".join(export_months_sel)
                         st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{file_months_str}.html", mime="text/html")
                 except Exception as e:
                     st.sidebar.error(f"Error: {e}")
