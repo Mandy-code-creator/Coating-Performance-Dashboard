@@ -586,6 +586,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found)")
         # ==========================================
         # ==========================================
+        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
@@ -622,7 +623,7 @@ if uploaded_file is not None:
                     else:
                         lines = sorted(df_word['線別'].unique())
                         
-                        # --- ĐÃ SỬA: Rút gọn tiêu đề báo cáo thành dạng Khoảng thời gian (Min ~ Max) ---
+                        # --- CẢI TIẾN 1: Rút gọn tiêu đề báo cáo thành dạng Khoảng thời gian (Min ~ Max) ---
                         sorted_sel_months = sorted(export_months_sel)
                         if len(sorted_sel_months) > 1:
                             months_str_title = f"{sorted_sel_months[0]} ~ {sorted_sel_months[-1]}"
@@ -725,7 +726,7 @@ if uploaded_file is not None:
                                 html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
                                 html_content += "</div>"
                                 
-                            # --- 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Bullet Chart Export - FIXED OVERLAP) ---
+                            # --- CẢI TIẾN 2: BULLET CHART EXPORT (Căn giữa, Chống đè chữ, Cố định tỉ lệ in ấn) ---
                             html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
                             
                             comp_df_line = df_line.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -734,8 +735,7 @@ if uploaded_file is not None:
                                 df_bar_comp_exp = comp_df_line.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                                 
                                 df_bar_comp_exp['Gap'] = df_bar_comp_exp['合計績效%'] - df_bar_comp_exp['設定績效%']
-                                
-                                # ĐÃ SỬA: Xóa bỏ thẻ <br> để chữ nối liền, phù hợp khi xoay thẳng đứng -90 độ
+                                # Bỏ <br> ở nhãn trục X để phù hợp khi xoay dọc đứng -90 độ
                                 df_bar_comp_exp['Display_Label'] = df_bar_comp_exp['塗料編號'] + ' (' + df_bar_comp_exp['用途'] + ')'
                                 df_bar_comp_exp = df_bar_comp_exp.sort_values(by='Gap', ascending=True)
                                 
@@ -756,6 +756,7 @@ if uploaded_file is not None:
                                 
                                 fig_comp_exp = go.Figure()
                                 
+                                # 1. Thanh Actual (Số thực tế đặt ở GIỮA cột)
                                 fig_comp_exp.add_trace(go.Bar(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['合計績效%'].tolist(),
@@ -769,6 +770,7 @@ if uploaded_file is not None:
                                     width=0.5
                                 ))
                                 
+                                # 2. Vạch ngang đen mục tiêu lý thuyết
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['設定績效%'].tolist(),
@@ -783,20 +785,23 @@ if uploaded_file is not None:
                                     hoverinfo='skip'
                                 ))
                                 
-                                safe_y_positions = df_bar_comp_exp[['設定績效%', '合計績效%']].max(axis=1) + 2.5
+                                # 3. CHỐNG ĐÈ CHỮ: Tách riêng nhãn lý thuyết và XOAY DỌC -90 độ, đẩy cao hẳn lên trên
+                                safe_y_positions = df_bar_comp_exp[['設定績效%', '合計績效%']].max(axis=1) + 4 
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=safe_y_positions.tolist(),
                                     mode='text',
                                     text=df_bar_comp_exp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
                                     textposition='top center',
-                                    textfont=dict(weight='bold', color='#1E3A8A', size=11),
+                                    textfont=dict(weight='bold', color='#1E3A8A', size=10),
+                                    textangle=-90, # Xoay dọc chữ lý thuyết chống đè hàng loạt
                                     showlegend=False,
                                     hoverinfo='skip'
                                 ))
                                 
                                 num_items = len(df_bar_comp_exp)
-                                y_max_limit = max(120, df_bar_comp_exp['設定績效%'].max() + 15)
+                                # Nâng trần trục Y lên để chữ xoay dọc không bị đụng nóc biểu đồ
+                                y_max_limit = max(130, df_bar_comp_exp['設定績效%'].max() + 25) 
                                 
                                 shapes = [
                                     dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=0, y1=85, xref="x", yref="y",
@@ -810,14 +815,15 @@ if uploaded_file is not None:
                                 fig_comp_exp.update_layout(**common_layout)
                                 fig_comp_exp.update_layout(
                                     barmode='group',
-                                    autosize=True, 
+                                    autosize=False, 
+                                    width=1200, # Khóa cứng chiều rộng 1200px giúp bảo toàn tỉ lệ cột chuẩn như trên app
                                     height=650,
                                     shapes=shapes,
                                     title=dict(text=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>", x=0.5, font=dict(size=18)),
                                     xaxis=dict(
                                         title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
-                                        tickangle=-90, # ĐÃ SỬA: Xoay thẳng đứng hoàn toàn -90 độ để các nhãn đứng song song, không đâm vào nhau
-                                        tickfont=dict(size=10), # Giảm font chữ để tiết kiệm diện tích bề ngang
+                                        tickangle=-90, # Xoay dọc nhãn mã sơn -90 độ
+                                        tickfont=dict(size=10),
                                         automargin=True,
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
@@ -827,7 +833,7 @@ if uploaded_file is not None:
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
                                     legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="right", x=1),
-                                    margin=dict(b=180, t=110, r=40, l=60) # ĐÃ SỬA: Tăng lề dưới (b=180) để chứa đủ chiều dài của chữ dựng đứng
+                                    margin=dict(b=180, t=110, r=40, l=60) # Chừa lề dưới b=180 cho nhãn dọc trục X
                                 )
                                 
                                 html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
