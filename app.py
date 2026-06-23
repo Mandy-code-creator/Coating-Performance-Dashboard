@@ -462,51 +462,57 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design)]
+        # ==========================================
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效對比 (理論 vs 實際 - 多階預警)")
-            st.info("💡 預警視覺邏輯 (Visual Alert Logic):\n1. 「設定績效 <= 85%」：理論柱變更為藍色以作區隔 (Theoretical <= 85% turns Blue).\n2. 「設定績效 <= 85% 且 實際 < 理論」：實際柱變更為紅色並加上 🚨 符號 (Critical drops turn Red with 🚨).")
+            st.info("💡 預警視覺邏輯 (Visual Alert Logic):\n1. 「實際比理論低 >= 10%」：實際柱變更為深紅色並加上 🚨 符號 (Severe drops >=10% turn Deep Red with 🚨).\n2. 「設定績效 <= 85% 且 實際 < 理論」：實際柱變更為紅色並加上 ⚠️ 符號 (Low target drops turn Red with ⚠️).")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
                 
                 if not gap_df.empty:
-                    # Gom nhóm theo mã sơn và công dụng
                     df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                     
                     # Tính độ chênh lệch để sắp xếp (Thực tế - Lý thuyết)
                     df_gap_comp['Gap'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
                     df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
                     
-                    # Sắp xếp từ lệch âm nhiều nhất (kém nhất) đến tốt nhất để sếp dễ soi lỗi
+                    # Sắp xếp từ lệch âm nhiều nhất (kém nhất) đến tốt nhất
                     df_gap_comp = df_gap_comp.sort_values(by='Gap', ascending=True)
                     
-                    # ---------------------------------------------------------
-                    # THUẬT TOÁN TẠO MẢNG MÀU VÀ KÝ HIỆU ĐỘNG (MULTI-LEVEL ALERT)
-                    # ---------------------------------------------------------
                     theo_colors = []
                     act_colors = []
                     act_labels = []
                     
                     for _, row in df_gap_comp.iterrows():
-                        # 1. Xử lý cột Lý thuyết (Theoretical)
+                        # 1. Xác định màu sắc cho cột Lý thuyết (Theoretical)
                         if row['設定績效%'] <= 85:
-                            theo_colors.append('#2563EB') # Mục tiêu thấp -> Đổi sang Xanh Dương
+                            theo_colors.append('#2563EB') # Nhóm nền thấp -> Xanh dương
                         else:
-                            theo_colors.append('#6D28D9') # Mục tiêu bình thường -> Giữ màu Tím
+                            theo_colors.append('#6D28D9') # Nhóm bình thường -> Tím
                             
-                        # 2. Xử lý cột Thực tế (Actual) & Ký hiệu cảnh báo
-                        if row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
-                            act_colors.append('#DC2626') # Vi phạm nghiêm trọng -> Đổi sang Đỏ rực
-                            act_labels.append(f"🚨 {row['合計績效%']:.1f}%") # Thêm biểu tượng 🚨 độc quyền
+                        # Tính toán khoảng cách thực tế hụt bao nhiêu % so với lý thuyết
+                        gap_val = row['合計績效%'] - row['設定績效%']
+                        
+                        # 2. Thuật toán phân tầng màu sắc động cho cột Thực tế (Actual)
+                        if gap_val <= -10:
+                            # CẢNH BÁO CẤP 1: Thực tế thấp hơn lý thuyết từ 10% trở lên (Bất kể mức thiết kế nào)
+                            act_colors.append('#990000') # Đỏ sẫm / Đỏ đô
+                            act_labels.append(f"🚨 {row['合計績效%']:.1f}%")
+                        elif row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
+                            # CẢNH BÁO CẤP 2: Thuộc nhóm nền thấp (<=85%) và thực tế bị hụt chỉ tiêu nhẹ
+                            act_colors.append('#DC2626') # Đỏ tươi
+                            act_labels.append(f"⚠️ {row['合計績效%']:.1f}%")
                         else:
-                            act_colors.append('#F59E0B') # Bình thường -> Giữ màu Cam
+                            # TRƯỜNG HỢP BÌNH THƯỜNG: Đạt chỉ tiêu hoặc hụt không đáng kể
+                            act_colors.append('#F59E0B') # Cam mặc định
                             act_labels.append(f"{row['合計績效%']:.1f}%")
                     
                     fig_gap = go.Figure()
                     
-                    # Nạp chuỗi màu động vào trace Lý thuyết
+                    # Add trace cho cột Lý thuyết
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(), 
                         y=df_gap_comp['設定績效%'].tolist(), 
@@ -518,19 +524,18 @@ if uploaded_file is not None:
                         textfont=dict(weight='bold', color='white')
                     ))
                     
-                    # Nạp chuỗi màu động và ký hiệu 🚨 vào trace Thực tế
+                    # Add trace cho cột Thực tế (Áp dụng nhãn và màu phân cấp động)
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(), 
                         y=df_gap_comp['合計績效%'].tolist(), 
                         name='合計績效% (Actual)', 
                         marker_color=act_colors,
                         marker_line_color='black', marker_line_width=1.2,
-                        text=act_labels, # Sử dụng nhãn động có chứa 🚨
+                        text=act_labels, 
                         textposition='auto',
                         textfont=dict(weight='bold', color='black')
                     ))
                     
-                    # Khoảng cách cột thanh thoát
                     num_items = len(df_gap_comp)
                     dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
                     
@@ -543,24 +548,24 @@ if uploaded_file is not None:
                         xaxis=dict(title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", tickangle=-45, automargin=True),
                         yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)]),
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        margin=dict(b=120, t=80)
+                        margin=dict(b=120, t=80, r=120) 
                     )
                     
-                    # Kẻ đường mục tiêu chuẩn 100% (Đỏ đứt đoạn)
+                    # Đường giới hạn mục tiêu 100%
                     fig_gap.add_hline(y=100, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_gap.add_annotation(
-                        x=1, y=100, xref="paper", yref="y", 
+                        x=1.01, y=100, xref="paper", yref="y", 
                         text="<b>100% Target</b>", 
-                        showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
+                        showarrow=False, xanchor="left", yanchor="bottom", yshift=5, 
                         font=dict(color="#DC2626", size=13, weight="bold")
                     )
                     
-                    # Thêm đường tham chiếu 85% (Xanh dương chấm chấm) để bổ trợ cho việc nhìn màu sắc của sếp
+                    # Đường tham chiếu 85%
                     fig_gap.add_hline(y=85, line_dash="dot", line_color="#2563EB", line_width=1.5)
                     fig_gap.add_annotation(
-                        x=1, y=85, xref="paper", yref="y", 
+                        x=1.01, y=85, xref="paper", yref="y", 
                         text="<b>85% Baseline</b>", 
-                        showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
+                        showarrow=False, xanchor="left", yanchor="bottom", yshift=5, 
                         font=dict(color="#2563EB", size=12, weight="bold")
                     )
                     
