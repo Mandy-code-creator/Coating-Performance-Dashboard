@@ -635,7 +635,7 @@ if uploaded_file is not None:
                         <head>
                             <meta charset='UTF-8'>
                             <title>Performance Report - {file_months_str}</title>
-                            <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+                            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
                             <style>
                                 body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }}
                                 .container {{ background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 1200px; margin: auto; }}
@@ -672,7 +672,7 @@ if uploaded_file is not None:
                             html_content += f"<h2>🏭 線別 (Line): {line}</h2>"
                             df_line = df_word[df_word['線別'] == line].copy()
                             
-                            # --- 1. SCATTER PLOT ---
+                            # --- 1. SCATTER PLOT (Export Version) ---
                             plot_df_line = df_line.dropna(subset=['合計理論耗用', '合計績效%']).copy()
                             plot_df_line = plot_df_line[plot_df_line['合計理論耗用'] > 0]
                             
@@ -721,7 +721,8 @@ if uploaded_file is not None:
                                 fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                                 
                                 html_content += "<div class='keep-together'>"
-                                html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
+                                # ĐÃ SỬA: Đổi thành include_plotlyjs='cdn' để biểu đồ Scatter render được các bọt nước
+                                html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                                 html_content += "</div>"
                                 
                             # --- 2. BULLET CHART EXPORT ---
@@ -753,7 +754,6 @@ if uploaded_file is not None:
                                 
                                 fig_comp_exp = go.Figure()
                                 
-                                # 1. Thanh Actual 
                                 fig_comp_exp.add_trace(go.Bar(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['合計績效%'].tolist(),
@@ -767,7 +767,6 @@ if uploaded_file is not None:
                                     width=0.5
                                 ))
                                 
-                                # 2. Vạch ngang đen
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['設定績效%'].tolist(),
@@ -782,7 +781,6 @@ if uploaded_file is not None:
                                     hoverinfo='skip'
                                 ))
                                 
-                                # 3. CHỐNG ĐÈ CHỮ: Dùng vòng lặp Annotation thay vì go.Scatter để được phép xoay góc -90 độ
                                 for _, row in df_bar_comp_exp.iterrows():
                                     safe_y = max(row['合計績效%'], row['設定績效%']) + 2.5
                                     fig_comp_exp.add_annotation(
@@ -791,8 +789,8 @@ if uploaded_file is not None:
                                         text=f"{row['設定績效%']:.1f}%",
                                         showarrow=False,
                                         font=dict(weight='bold', color='#1E3A8A', size=10),
-                                        textangle=-90,     # QUAN TRỌNG: Xoay dọc chữ chống đè
-                                        yanchor='bottom'   # Giữ chân chữ bám vào tọa độ y
+                                        textangle=-90,
+                                        yanchor='bottom'
                                     )
                                 
                                 num_items = len(df_bar_comp_exp)
@@ -852,7 +850,8 @@ if uploaded_file is not None:
                                 fig_pareto_exp.update_layout(**common_layout, height=650, title=dict(text=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>", x=0.5))
                                 fig_pareto_exp.update_layout(xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True), yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"), yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'), showlegend=True, margin=dict(b=160))
                                 
-                                html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs=False)
+                                # ĐÃ SỬA: Đồng bộ luôn Pareto chart dùng cdn cho an toàn
+                                html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
                             else:
                                 html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
                             html_content += "</div>"
