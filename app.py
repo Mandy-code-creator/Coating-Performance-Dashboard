@@ -586,7 +586,6 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found)")
         # ==========================================
         # ==========================================
-        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
@@ -719,16 +718,14 @@ if uploaded_file is not None:
                                 html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
                                 html_content += "</div>"
                                 
-                            # --- ĐÃ SỬA 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Bullet Chart Export) ---
-                            # Dùng CSS Flexbox để ép biểu đồ vào chính giữa màn hình báo cáo
-                            html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column;'>"
+                            # --- 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Bullet Chart Export - PDF AUTO FIT) ---
+                            html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
                             
                             comp_df_line = df_line.dropna(subset=['設定績效%', '合計績效%']).copy()
                             
                             if not comp_df_line.empty:
                                 df_bar_comp_exp = comp_df_line.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                                 
-                                # 績效落差排序邏輯
                                 df_bar_comp_exp['Gap'] = df_bar_comp_exp['合計績效%'] - df_bar_comp_exp['設定績效%']
                                 df_bar_comp_exp['Display_Label'] = df_bar_comp_exp['塗料編號'] + '<br>(' + df_bar_comp_exp['用途'] + ')'
                                 df_bar_comp_exp = df_bar_comp_exp.sort_values(by='Gap', ascending=True)
@@ -750,7 +747,6 @@ if uploaded_file is not None:
                                 
                                 fig_comp_exp = go.Figure()
                                 
-                                # 1. BULLET ACT BAR (文字置中避免碰撞)
                                 fig_comp_exp.add_trace(go.Bar(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['合計績效%'].tolist(),
@@ -764,7 +760,6 @@ if uploaded_file is not None:
                                     width=0.45
                                 ))
                                 
-                                # 2. BULLET TARGET MARKER (橫線標記)
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['設定績效%'].tolist(),
@@ -779,7 +774,6 @@ if uploaded_file is not None:
                                     hoverinfo='skip'
                                 ))
                                 
-                                # 3. FLOATING THEORETICAL LABELS
                                 safe_y_positions = df_bar_comp_exp[['設定績效%', '合計績效%']].max(axis=1) + 2.5
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
@@ -793,10 +787,8 @@ if uploaded_file is not None:
                                 ))
                                 
                                 num_items = len(df_bar_comp_exp)
-                                dynamic_width = max(800, num_items * 65)
                                 y_max_limit = max(120, df_bar_comp_exp['設定績效%'].max() + 15)
                                 
-                                # 4. BULLET BACKGROUND ZONES
                                 shapes = [
                                     dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=0, y1=85, xref="x", yref="y",
                                          fillcolor="rgba(239, 68, 68, 0.15)", line_width=0, layer="below"),
@@ -809,10 +801,9 @@ if uploaded_file is not None:
                                 fig_comp_exp.update_layout(**common_layout)
                                 fig_comp_exp.update_layout(
                                     barmode='group',
-                                    width=dynamic_width,
+                                    autosize=True, # ĐÃ SỬA: Bỏ width=dynamic_width, dùng autosize để tự fit 100% khi in PDF
                                     height=600,
                                     shapes=shapes,
-                                    # Tiêu đề được căn vào chính giữa biểu đồ (x=0.5)
                                     title=dict(text=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>", x=0.5, font=dict(size=18)),
                                     xaxis=dict(
                                         title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
@@ -825,10 +816,8 @@ if uploaded_file is not None:
                                         range=[0, y_max_limit],
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
-                                    # Đẩy Legend lên cao (y=1.15) để tránh đè vào Tiêu đề
                                     legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="right", x=1),
-                                    # Tăng lề trên (t=130) để tạo khoảng trống cho Tiêu đề và Legend
-                                    margin=dict(b=140, t=130, r=40, l=80)
+                                    margin=dict(b=140, t=130, r=40, l=60) # Cân chỉnh lại lề cho bản in PDF
                                 )
                                 
                                 html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
