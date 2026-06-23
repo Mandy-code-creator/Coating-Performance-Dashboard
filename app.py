@@ -586,6 +586,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found)")
         # ==========================================
         # ==========================================
+        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
@@ -718,9 +719,9 @@ if uploaded_file is not None:
                                 html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
                                 html_content += "</div>"
                                 
-                            # --- ĐÃ SỬA 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Export Version - Task 8 Professional Vertical Bullet Chart) ---
-                            html_content += "<div class='keep-together'>"
-                            html_content += f"<h3>📊 Line {line} - 塗料績效定量分析產能看板 (Professional Vertical Bullet Chart)</h3>"
+                            # --- ĐÃ SỬA 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Bullet Chart Export) ---
+                            # Dùng CSS Flexbox để ép biểu đồ vào chính giữa màn hình báo cáo
+                            html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column;'>"
                             
                             comp_df_line = df_line.dropna(subset=['設定績效%', '合計績效%']).copy()
                             
@@ -738,13 +739,13 @@ if uploaded_file is not None:
                                 for _, row in df_bar_comp_exp.iterrows():
                                     gap_val = row['合計績效%'] - row['設定績效%']
                                     if gap_val <= -10:
-                                        act_colors.append('#990000') # 實際比理論低 >= 10% -> 深紅色 🚨
+                                        act_colors.append('#990000') 
                                         act_labels.append(f"🚨 {row['合計績效%']:.1f}%")
                                     elif row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
-                                        act_colors.append('#DC2626') # 設定績效 <= 85% 且未達標 -> 紅色 ⚠️
+                                        act_colors.append('#DC2626') 
                                         act_labels.append(f"⚠️ {row['合計績效%']:.1f}%")
                                     else:
-                                        act_colors.append('#F59E0B') # 正常 -> 橘黃色
+                                        act_colors.append('#F59E0B') 
                                         act_labels.append(f"{row['合計績效%']:.1f}%")
                                 
                                 fig_comp_exp = go.Figure()
@@ -778,7 +779,7 @@ if uploaded_file is not None:
                                     hoverinfo='skip'
                                 ))
                                 
-                                # 3. FLOATING THEORETICAL LABELS (浮動解耦文字，避開圖形重疊)
+                                # 3. FLOATING THEORETICAL LABELS
                                 safe_y_positions = df_bar_comp_exp[['設定績效%', '合計績效%']].max(axis=1) + 2.5
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
@@ -795,7 +796,7 @@ if uploaded_file is not None:
                                 dynamic_width = max(800, num_items * 65)
                                 y_max_limit = max(120, df_bar_comp_exp['設定績效%'].max() + 15)
                                 
-                                # 4. BULLET BACKGROUND ZONES (加深背景帶分佈)
+                                # 4. BULLET BACKGROUND ZONES
                                 shapes = [
                                     dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=0, y1=85, xref="x", yref="y",
                                          fillcolor="rgba(239, 68, 68, 0.15)", line_width=0, layer="below"),
@@ -811,7 +812,8 @@ if uploaded_file is not None:
                                     width=dynamic_width,
                                     height=600,
                                     shapes=shapes,
-                                    title=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>",
+                                    # Tiêu đề được căn vào chính giữa biểu đồ (x=0.5)
+                                    title=dict(text=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>", x=0.5, font=dict(size=18)),
                                     xaxis=dict(
                                         title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
                                         tickangle=-45,
@@ -823,13 +825,15 @@ if uploaded_file is not None:
                                         range=[0, y_max_limit],
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
-                                    legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1),
-                                    margin=dict(b=140, t=100, r=40, l=80)
+                                    # Đẩy Legend lên cao (y=1.15) để tránh đè vào Tiêu đề
+                                    legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="right", x=1),
+                                    # Tăng lề trên (t=130) để tạo khoảng trống cho Tiêu đề và Legend
+                                    margin=dict(b=140, t=130, r=40, l=80)
                                 )
                                 
                                 html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
                             else:
-                                html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無可用數據可供分析。</p>"
+                                html_content += "<p style='color:green; font-weight:bold; text-align:center;'>🎉 目前此線別無可用數據可供分析。</p>"
                             html_content += "</div>"
                             
                             # --- 3. PARETO CHART ---
