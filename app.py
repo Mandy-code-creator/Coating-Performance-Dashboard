@@ -462,8 +462,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Professional Bullet Chart - Full Labels)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Professional Bullet Chart - Fixed Marker Error)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效面專驗看板 (Professional Bullet Chart Analysis)")
@@ -511,25 +510,24 @@ if uploaded_file is not None:
                         width=0.45 
                     ))
                     
-                    # 2. BULLET TARGET MARKER: Vạch đen chỉ định mức Lý thuyết (Đã bật hiển thị số)
+                    # 2. BULLET TARGET MARKER: Vạch đen chỉ định mức Lý thuyết
                     fig_gap.add_trace(go.Scatter(
                         x=df_gap_comp['設定績效%'].tolist(),
                         y=df_gap_comp['Display_Label'].tolist(),
-                        mode='markers+text', # Bật chế độ hiển thị Text
+                        mode='markers+text', 
                         name='設定績效% (Theoretical Target)',
                         marker=dict(
                             symbol='line-ns', 
                             size=22,
-                            linewidth=3,
-                            color='black'
+                            color='black',
+                            line=dict(width=3, color='black') # ĐÃ SỬA LỖI CÚ PHÁP TẠI ĐÂY
                         ),
-                        text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'), # Nạp số lý thuyết
-                        textposition='top center', # Đẩy số lên trên vạch đen
-                        textfont=dict(weight='bold', color='#1E3A8A', size=12), # Màu xanh đen, in đậm
+                        text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'), 
+                        textposition='top center', 
+                        textfont=dict(weight='bold', color='#1E3A8A', size=12), 
                         hoverinfo='skip'
                     ))
                     
-                    # Tăng chiều cao để có đủ không gian cho chữ Lý thuyết hiển thị không bị đè
                     num_items = len(df_gap_comp)
                     dynamic_height = max(500, num_items * 55) 
                     x_max_limit = max(120, df_gap_comp['設定績效%'].max() + 15)
