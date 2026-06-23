@@ -463,12 +463,11 @@ if uploaded_file is not None:
         # ==========================================
         # ==========================================
         # ==========================================
-        # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Grouped Bar Design)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Grouped Bar Design with Dynamic Alert Coloring)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效對比 (理論 vs 實際)")
-            st.info("💡 此圖表顯示「所有塗料」的理論與實際績效對比，並依據「落差幅度 (實際 - 理論)」由大到小排序。左側為未達標最嚴重的項目。(Displays all paints, sorted by performance gap from worst to best)")
+            st.info("💡 此圖表顯示「所有塗料」的理論與實際績效對比。若實際績效低於理論績效超過 10% (落差 < -10%)，該實際績效柱狀圖將自動變更為紅色以示預警。(Actual bars turn RED if performance drops >10% below theoretical)")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -477,19 +476,22 @@ if uploaded_file is not None:
                     # Gom nhóm theo mã sơn và công dụng
                     df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                     
-                    # Tính độ chênh lệch để sắp xếp (Thực tế - Lý thuyết)
+                    # Tính độ chênh lệch để sắp xếp và đặt điều kiện (Thực tế - Lý thuyết)
                     df_gap_comp['Gap'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
                     df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
                     
-                    # Sắp xếp từ âm nhiều nhất (kém nhất) đến dương nhiều nhất (tốt nhất)
+                    # Sắp xếp từ lệch âm nhiều nhất (kém nhất) đến tốt nhất
                     df_gap_comp = df_gap_comp.sort_values(by='Gap', ascending=True)
+                    
+                    # LOGIC TÔ MÀU ĐỘNG: Thấp hơn chỉ tiêu lý thuyết > 10% thì dùng màu đỏ (#DC2626), còn lại dùng màu cam (#F59E0B)
+                    dynamic_actual_colors = np.where(df_gap_comp['Gap'] < -10, '#DC2626', '#F59E0B').tolist()
                     
                     fig_gap = go.Figure()
                     
-                    # Cột Lý thuyết (Tím)
+                    # Cột Lý thuyết (Giữ màu tím nguyên bản)
                     fig_gap.add_trace(go.Bar(
-                        x=df_gap_comp['Display_Label'], 
-                        y=df_gap_comp['設定績效%'], 
+                        x=df_gap_comp['Display_Label'].tolist(), 
+                        y=df_gap_comp['設定績效%'].tolist(), 
                         name='設定績效% (Theoretical)', 
                         marker_color='#6D28D9',
                         marker_line_color='black', marker_line_width=1.2,
@@ -498,19 +500,19 @@ if uploaded_file is not None:
                         textfont=dict(weight='bold', color='white')
                     ))
                     
-                    # Cột Thực tế (Cam)
+                    # Cột Thực tế (Áp dụng mảng màu động để tự động tô đỏ cột vi phạm)
                     fig_gap.add_trace(go.Bar(
-                        x=df_gap_comp['Display_Label'], 
-                        y=df_gap_comp['合計績效%'], 
+                        x=df_gap_comp['Display_Label'].tolist(), 
+                        y=df_gap_comp['合計績效%'].tolist(), 
                         name='合計績效% (Actual)', 
-                        marker_color='#F59E0B',
+                        marker_color=dynamic_actual_colors, # Áp dụng mảng màu động tại đây
                         marker_line_color='black', marker_line_width=1.2,
                         text=df_gap_comp['合計績效%'].apply(lambda x: f'{x:.1f}%'),
                         textposition='auto',
                         textfont=dict(weight='bold', color='black')
                     ))
                     
-                    # Tự động điều chỉnh khoảng cách cột nếu dữ liệu ít
+                    # Tự động điều chỉnh khoảng cách cột tránh bị phình to khi ít dữ liệu
                     num_items = len(df_gap_comp)
                     dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
                     
@@ -521,16 +523,16 @@ if uploaded_file is not None:
                         bargap=dynamic_bargap,
                         title="<b>全廠數據: 理論 vs 實際表現 (Actual vs Theoretical)</b>",
                         xaxis=dict(title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", tickangle=-45, automargin=True),
-                        yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(100, df_gap_comp['設定績效%'].max() + 15)]),
+                        yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)]),
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         margin=dict(b=120, t=80)
                     )
                     
-                    # Đường giới hạn 90%
-                    fig_gap.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
+                    # Đường giới hạn mục tiêu 100%
+                    fig_gap.add_hline(y=100, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_gap.add_annotation(
-                        x=1, y=90, xref="paper", yref="y", 
-                        text="<b>90% Threshold</b>", 
+                        x=1, y=100, xref="paper", yref="y", 
+                        text="<b>100% Threshold</b>", 
                         showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
                         font=dict(color="#DC2626", size=13, weight="bold")
                     )
