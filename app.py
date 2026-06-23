@@ -462,7 +462,8 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2 with Border Frame)]
+        # ==========================================
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2 with Border Frame - Fixed)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效對比 (理論 vs 實際 - 多階預警)")
@@ -474,11 +475,11 @@ if uploaded_file is not None:
                 if not gap_df.empty:
                     df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                     
-                    # Tính độ chênh lệch để sắp xếp (Thực tế - Lý thuyết)
+                    # 績效落差排序邏輯 (實際 - 理論)
                     df_gap_comp['Gap'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
                     df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
                     
-                    # Sắp xếp từ lệch âm nhiều nhất (kém nhất) đến tốt nhất
+                    # 依據落差由小到大排序 (最差的在最左側)
                     df_gap_comp = df_gap_comp.sort_values(by='Gap', ascending=True)
                     
                     theo_colors = []
@@ -486,29 +487,29 @@ if uploaded_file is not None:
                     act_labels = []
                     
                     for _, row in df_gap_comp.iterrows():
-                        # 1. Xác định màu sắc cho cột Lý thuyết (Theoretical)
+                        # 1. 理論柱顏色判定 (Theoretical)
                         if row['設定績效%'] <= 85:
-                            theo_colors.append('#2563EB') # Nhóm nền thấp -> Xanh dương
+                            theo_colors.append('#2563EB') # 低目標 -> 藍色
                         else:
-                            theo_colors.append('#6D28D9') # Nhóm bình thường -> Tím
+                            theo_colors.append('#6D28D9') # 正常目標 -> 紫色
                             
-                        # Tính toán khoảng cách thực tế hụt bao nhiêu % so với lý thuyết
-                        gap_val = row['合計績效%'] - row['設定績ox%']
+                        # 【已修正】：將先前打錯的 設定績ox% 修改回正確的 設定績效%
+                        gap_val = row['合計績效%'] - row['設定績效%']
                         
-                        # 2. Thuật toán phân tầng màu sắc động cho cột Thực tế (Actual)
+                        # 2. 實際柱動態多階預警顏色與圖示
                         if gap_val <= -10:
-                            act_colors.append('#990000') # Đỏ sẫm / Đỏ đô
+                            act_colors.append('#990000') # 實際大幅落後理論 >= 10% -> 深紅色
                             act_labels.append(f"🚨 {row['合計績效%']:.1f}%")
                         elif row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
-                            act_colors.append('#DC2626') # Đỏ tươi
+                            act_colors.append('#DC2626') # 基準內未達標 -> 紅色
                             act_labels.append(f"⚠️ {row['合計績效%']:.1f}%")
                         else:
-                            act_colors.append('#F59E0B') # Cam mặc định
+                            act_colors.append('#F59E0B') # 正常 -> 橘黃色
                             act_labels.append(f"{row['合計績效%']:.1f}%")
                     
                     fig_gap = go.Figure()
                     
-                    # Add trace cho cột Lý thuyết
+                    # 繪製理論柱
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(), 
                         y=df_gap_comp['設定績效%'].tolist(), 
@@ -520,7 +521,7 @@ if uploaded_file is not None:
                         textfont=dict(weight='bold', color='white')
                     ))
                     
-                    # Add trace cho cột Thực tế
+                    # 繪製實際柱
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(), 
                         y=df_gap_comp['合計績效%'].tolist(), 
@@ -541,23 +542,23 @@ if uploaded_file is not None:
                         height=600,
                         bargap=dynamic_bargap,
                         title="<b>全廠數據: 理論 vs 實際多階預警看板 (Multi-level Alert Analysis)</b>",
-                        # --- ĐÃ THÊM ĐỦ KHUNG BAO 4 CẠNH CHO TRỤC X VÀ TRỤC Y TẠI ĐÂY ---
+                        # 完整保留四邊黑框（Khung bao）的 X 軸與 Y 軸設定
                         xaxis=dict(
                             title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", 
                             tickangle=-45, 
                             automargin=True,
-                            showline=True, linewidth=2, linecolor='black', mirror=True # Tạo viền hộp khép kín
+                            showline=True, linewidth=2, linecolor='black', mirror=True
                         ),
                         yaxis=dict(
                             title="<b>績效 (%)</b>", 
                             range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)],
-                            showline=True, linewidth=2, linecolor='black', mirror=True # Tạo viền hộp khép kín
+                            showline=True, linewidth=2, linecolor='black', mirror=True
                         ),
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         margin=dict(b=120, t=80, r=120) 
                     )
                     
-                    # Đường giới hạn mục tiêu 100%
+                    # 100% 目標線 (標籤外推，避免遮擋)
                     fig_gap.add_hline(y=100, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_gap.add_annotation(
                         x=1.01, y=100, xref="paper", yref="y", 
@@ -566,7 +567,7 @@ if uploaded_file is not None:
                         font=dict(color="#DC2626", size=13, weight="bold")
                     )
                     
-                    # Đường tham chiếu 85%
+                    # 85% 基準線 (標籤外推，避免遮擋)
                     fig_gap.add_hline(y=85, line_dash="dot", line_color="#2563EB", line_width=1.5)
                     fig_gap.add_annotation(
                         x=1.01, y=85, xref="paper", yref="y", 
