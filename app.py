@@ -462,11 +462,11 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Vertical Bullet Chart Design)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Vertical Bullet Chart - Darker Background Zones)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效面專驗看板 (Professional Vertical Bullet Chart)")
-            st.info("💡 📊 橫向藍色背景帶為低目標區 (<=85%)。長條圖上方數值為「實際績效」，黑色橫線標記上方數值為「理論設定績效」。\n🚨 實際比理論低 >= 10% 顯示深紅柱；⚠️ 設定績效 <= 85% 且未達標顯示紅柱。")
+            st.info("💡 📊 橫向藍色背景帶為低目標區 (<=85%)。長條圖中間數值為「實際績效」，黑色橫線標記上方數值為「理論設定績效」。\n🚨 實際比理論低 >= 10% 顯示深紅柱；⚠️ 設定績效 <= 85% 且未達標顯示紅柱。")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -488,13 +488,13 @@ if uploaded_file is not None:
                     for _, row in df_gap_comp.iterrows():
                         gap_val = row['合計績效%'] - row['設定績效%']
                         if gap_val <= -10:
-                            act_colors.append('#990000') # Đỏ sẫm + 🚨
+                            act_colors.append('#990000') 
                             act_labels.append(f"🚨 {row['合計績效%']:.1f}%")
                         elif row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
-                            act_colors.append('#DC2626') # Đỏ tươi + ⚠️
+                            act_colors.append('#DC2626') 
                             act_labels.append(f"⚠️ {row['合計績效%']:.1f}%")
                         else:
-                            act_colors.append('#F59E0B') # Cam mặc định
+                            act_colors.append('#F59E0B') 
                             act_labels.append(f"{row['合計績效%']:.1f}%")
                     
                     fig_gap = go.Figure()
@@ -508,8 +508,9 @@ if uploaded_file is not None:
                         marker_line_color='black', marker_line_width=1.2,
                         text=act_labels,
                         textposition='inside',
+                        insidetextanchor='middle', 
                         textfont=dict(weight='bold', color='black'),
-                        width=0.45 # Độ rộng cột mảnh tiêu chuẩn Bullet
+                        width=0.45 
                     ))
                     
                     # 2. BULLET TARGET MARKER: Vạch ngang đen chỉ định mức Lý thuyết cần đạt (—)
@@ -519,7 +520,7 @@ if uploaded_file is not None:
                         mode='markers+text', 
                         name='設定績效% (Theoretical Target)',
                         marker=dict(
-                            symbol='line-ew', # ĐÃ ĐỔI: Ký hiệu vạch ngang nằm ngang chỉ định đích chặn trên đầu cột
+                            symbol='line-ew', 
                             size=22,
                             color='black',
                             line=dict(width=3, color='black') 
@@ -530,32 +531,30 @@ if uploaded_file is not None:
                         hoverinfo='skip'
                     ))
                     
-                    # Tính toán CHIỀU RỘNG ĐỘNG (Dynamic Width) theo số lượng phần tử để tránh co cụm chữ trục X
                     num_items = len(df_gap_comp)
                     dynamic_width = max(800, num_items * 65) 
                     y_max_limit = max(120, df_gap_comp['設定績效%'].max() + 15)
                     
-                    # 3. BULLET BACKGROUND ZONES: Đã xoay ngang dải màu nền quét dọc theo trục Y
+                    # 3. BULLET BACKGROUND ZONES: Đã tăng độ đậm của các dải màu nền tại đây
                     shapes = [
-                        # Vùng Đỏ nhạt: 0% - 85% (Kém / Báo động)
+                        # Vùng Đỏ nhạt: 0% - 85% (Tăng lên 0.15)
                         dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=0, y1=85, xref="x", yref="y",
-                             fillcolor="rgba(239, 68, 68, 0.07)", line_width=0, layer="below"),
-                        # Vùng Vàng nhạt: 85% - 100% (Đạt tiêu chuẩn cơ bản)
+                             fillcolor="rgba(239, 68, 68, 0.15)", line_width=0, layer="below"),
+                        # Vùng Vàng nhạt: 85% - 100% (Tăng lên 0.12)
                         dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=85, y1=100, xref="x", yref="y",
-                             fillcolor="rgba(245, 158, 11, 0.05)", line_width=0, layer="below"),
-                        # Vùng Xanh nhạt: 100% trở lên (Vượt chỉ tiêu)
+                             fillcolor="rgba(245, 158, 11, 0.12)", line_width=0, layer="below"),
+                        # Vùng Xanh nhạt: 100% trở lên (Tăng lên 0.15)
                         dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=100, y1=y_max_limit, xref="x", yref="y",
-                             fillcolor="rgba(16, 185, 129, 0.07)", line_width=0, layer="below")
+                             fillcolor="rgba(16, 185, 129, 0.15)", line_width=0, layer="below")
                     ]
                     
                     fig_gap.update_layout(**common_layout)
                     fig_gap.update_layout(
                         barmode='group',
-                        width=dynamic_width, # Áp dụng chiều rộng động
+                        width=dynamic_width, 
                         height=600,
                         shapes=shapes,
                         title="<b>全廠數據: 塗料績效定量分析產能看板 (Global Vertical Bullet Chart)</b>",
-                        # Thiết lập khung bao khép kín viền đen sắc nét
                         xaxis=dict(
                             title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", 
                             tickangle=-45, 
@@ -571,7 +570,7 @@ if uploaded_file is not None:
                         margin=dict(b=140, t=100, r=40, l=80)
                     )
                     
-                    st.plotly_chart(fig_gap, use_container_width=False) # Tắt container_width để nhận chiều rộng động
+                    st.plotly_chart(fig_gap, use_container_width=False) 
                 else:
                     st.success("🎉 目前沒有足夠的數據可供分析。(Not enough data for analysis)")
             else:
