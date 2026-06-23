@@ -462,7 +462,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Professional Bullet Chart - Fixed Marker Error)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Professional Bullet Chart - Shape Fix)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效面專驗看板 (Professional Bullet Chart Analysis)")
@@ -520,7 +520,7 @@ if uploaded_file is not None:
                             symbol='line-ns', 
                             size=22,
                             color='black',
-                            line=dict(width=3, color='black') # ĐÃ SỬA LỖI CÚ PHÁP TẠI ĐÂY
+                            line=dict(width=3, color='black') 
                         ),
                         text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'), 
                         textposition='top center', 
@@ -532,14 +532,14 @@ if uploaded_file is not None:
                     dynamic_height = max(500, num_items * 55) 
                     x_max_limit = max(120, df_gap_comp['設定績效%'].max() + 15)
                     
-                    # 3. BULLET BACKGROUND ZONES: Dải màu nền
+                    # 3. BULLET BACKGROUND ZONES: Dải màu nền (ĐÃ SỬA line_width=0)
                     shapes = [
                         dict(type="rect", x0=0, x1=85, y0=-0.5, y1=num_items-0.5, xref="x", yref="y",
-                             fillcolor="rgba(239, 68, 68, 0.08)", linewidth=0, layer="below"),
+                             fillcolor="rgba(239, 68, 68, 0.08)", line_width=0, layer="below"),
                         dict(type="rect", x0=85, x1=100, y0=-0.5, y1=num_items-0.5, xref="x", yref="y",
-                             fillcolor="rgba(245, 158, 11, 0.06)", linewidth=0, layer="below"),
+                             fillcolor="rgba(245, 158, 11, 0.06)", line_width=0, layer="below"),
                         dict(type="rect", x0=100, x1=x_max_limit, y0=-0.5, y1=num_items-0.5, xref="x", yref="y",
-                             fillcolor="rgba(16, 185, 129, 0.08)", linewidth=0, layer="below")
+                             fillcolor="rgba(16, 185, 129, 0.08)", line_width=0, layer="below")
                     ]
                     
                     fig_gap.update_layout(**common_layout)
