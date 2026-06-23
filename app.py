@@ -462,12 +462,11 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Grouped Bar Design with Dynamic Alert Coloring)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design)]
         # ==========================================
         with tab_gap:
-            st.subheader("8. 全局績效對比 (理論 vs 實際)")
-            st.info("💡 此圖表顯示「所有塗料」的理論與實際績效對比。若實際績效低於理論績效超過 10% (落差 < -10%)，該實際績效柱狀圖將自動變更為紅色以示預警。(Actual bars turn RED if performance drops >10% below theoretical)")
+            st.subheader("8. 全局績效對比 (理論 vs 實際 - 多階預警)")
+            st.info("💡 預警視覺邏輯 (Visual Alert Logic):\n1. 「設定績效 <= 85%」：理論柱變更為藍色以作區隔 (Theoretical <= 85% turns Blue).\n2. 「設定績效 <= 85% 且 實際 < 理論」：實際柱變更為紅色並加上 🚨 符號 (Critical drops turn Red with 🚨).")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -476,43 +475,62 @@ if uploaded_file is not None:
                     # Gom nhóm theo mã sơn và công dụng
                     df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                     
-                    # Tính độ chênh lệch để sắp xếp và đặt điều kiện (Thực tế - Lý thuyết)
+                    # Tính độ chênh lệch để sắp xếp (Thực tế - Lý thuyết)
                     df_gap_comp['Gap'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
                     df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
                     
-                    # Sắp xếp từ lệch âm nhiều nhất (kém nhất) đến tốt nhất
+                    # Sắp xếp từ lệch âm nhiều nhất (kém nhất) đến tốt nhất để sếp dễ soi lỗi
                     df_gap_comp = df_gap_comp.sort_values(by='Gap', ascending=True)
                     
-                    # LOGIC TÔ MÀU ĐỘNG: Thấp hơn chỉ tiêu lý thuyết > 10% thì dùng màu đỏ (#DC2626), còn lại dùng màu cam (#F59E0B)
-                    dynamic_actual_colors = np.where(df_gap_comp['Gap'] < -10, '#DC2626', '#F59E0B').tolist()
+                    # ---------------------------------------------------------
+                    # THUẬT TOÁN TẠO MẢNG MÀU VÀ KÝ HIỆU ĐỘNG (MULTI-LEVEL ALERT)
+                    # ---------------------------------------------------------
+                    theo_colors = []
+                    act_colors = []
+                    act_labels = []
+                    
+                    for _, row in df_gap_comp.iterrows():
+                        # 1. Xử lý cột Lý thuyết (Theoretical)
+                        if row['設定績效%'] <= 85:
+                            theo_colors.append('#2563EB') # Mục tiêu thấp -> Đổi sang Xanh Dương
+                        else:
+                            theo_colors.append('#6D28D9') # Mục tiêu bình thường -> Giữ màu Tím
+                            
+                        # 2. Xử lý cột Thực tế (Actual) & Ký hiệu cảnh báo
+                        if row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
+                            act_colors.append('#DC2626') # Vi phạm nghiêm trọng -> Đổi sang Đỏ rực
+                            act_labels.append(f"🚨 {row['合計績效%']:.1f}%") # Thêm biểu tượng 🚨 độc quyền
+                        else:
+                            act_colors.append('#F59E0B') # Bình thường -> Giữ màu Cam
+                            act_labels.append(f"{row['合計績效%']:.1f}%")
                     
                     fig_gap = go.Figure()
                     
-                    # Cột Lý thuyết (Giữ màu tím nguyên bản)
+                    # Nạp chuỗi màu động vào trace Lý thuyết
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(), 
                         y=df_gap_comp['設定績效%'].tolist(), 
                         name='設定績效% (Theoretical)', 
-                        marker_color='#6D28D9',
+                        marker_color=theo_colors,
                         marker_line_color='black', marker_line_width=1.2,
                         text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
                         textposition='auto',
                         textfont=dict(weight='bold', color='white')
                     ))
                     
-                    # Cột Thực tế (Áp dụng mảng màu động để tự động tô đỏ cột vi phạm)
+                    # Nạp chuỗi màu động và ký hiệu 🚨 vào trace Thực tế
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(), 
                         y=df_gap_comp['合計績效%'].tolist(), 
                         name='合計績效% (Actual)', 
-                        marker_color=dynamic_actual_colors, # Áp dụng mảng màu động tại đây
+                        marker_color=act_colors,
                         marker_line_color='black', marker_line_width=1.2,
-                        text=df_gap_comp['合計績效%'].apply(lambda x: f'{x:.1f}%'),
+                        text=act_labels, # Sử dụng nhãn động có chứa 🚨
                         textposition='auto',
                         textfont=dict(weight='bold', color='black')
                     ))
                     
-                    # Tự động điều chỉnh khoảng cách cột tránh bị phình to khi ít dữ liệu
+                    # Khoảng cách cột thanh thoát
                     num_items = len(df_gap_comp)
                     dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
                     
@@ -521,20 +539,29 @@ if uploaded_file is not None:
                         barmode='group',
                         height=600,
                         bargap=dynamic_bargap,
-                        title="<b>全廠數據: 理論 vs 實際表現 (Actual vs Theoretical)</b>",
+                        title="<b>全廠數據: 理論 vs 實際多階預警看板 (Multi-level Alert Analysis)</b>",
                         xaxis=dict(title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", tickangle=-45, automargin=True),
                         yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)]),
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         margin=dict(b=120, t=80)
                     )
                     
-                    # Đường giới hạn mục tiêu 100%
+                    # Kẻ đường mục tiêu chuẩn 100% (Đỏ đứt đoạn)
                     fig_gap.add_hline(y=100, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_gap.add_annotation(
                         x=1, y=100, xref="paper", yref="y", 
-                        text="<b>100% Threshold</b>", 
+                        text="<b>100% Target</b>", 
                         showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
                         font=dict(color="#DC2626", size=13, weight="bold")
+                    )
+                    
+                    # Thêm đường tham chiếu 85% (Xanh dương chấm chấm) để bổ trợ cho việc nhìn màu sắc của sếp
+                    fig_gap.add_hline(y=85, line_dash="dot", line_color="#2563EB", line_width=1.5)
+                    fig_gap.add_annotation(
+                        x=1, y=85, xref="paper", yref="y", 
+                        text="<b>85% Baseline</b>", 
+                        showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
+                        font=dict(color="#2563EB", size=12, weight="bold")
                     )
                     
                     st.plotly_chart(fig_gap, use_container_width=True)
