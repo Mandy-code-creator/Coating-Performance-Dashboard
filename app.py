@@ -462,8 +462,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2 with Border Frame - Fixed)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2 with Border Frame - Fixed Legend)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效對比 (理論 vs 實際 - 多階預警)")
@@ -493,7 +492,6 @@ if uploaded_file is not None:
                         else:
                             theo_colors.append('#6D28D9') # 正常目標 -> 紫色
                             
-                        # 【已修正】：將先前打錯的 設定績ox% 修改回正確的 設定績效%
                         gap_val = row['合計績效%'] - row['設定績效%']
                         
                         # 2. 實際柱動態多階預警顏色與圖示
@@ -542,7 +540,6 @@ if uploaded_file is not None:
                         height=600,
                         bargap=dynamic_bargap,
                         title="<b>全廠數據: 理論 vs 實際多階預警看板 (Multi-level Alert Analysis)</b>",
-                        # 完整保留四邊黑框（Khung bao）的 X 軸與 Y 軸設定
                         xaxis=dict(
                             title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", 
                             tickangle=-45, 
@@ -554,11 +551,13 @@ if uploaded_file is not None:
                             range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)],
                             showline=True, linewidth=2, linecolor='black', mirror=True
                         ),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        margin=dict(b=120, t=80, r=120) 
+                        # --- ĐÃ SỬA: Đẩy Legend lên y=1.08 ---
+                        legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1),
+                        # --- ĐÃ SỬA: Tăng lề trên t=100 để chừa chỗ cho Legend ---
+                        margin=dict(b=120, t=100, r=120) 
                     )
                     
-                    # 100% 目標線 (標籤外推，避免遮擋)
+                    # 100% 目標線
                     fig_gap.add_hline(y=100, line_dash="dash", line_color="#DC2626", line_width=2)
                     fig_gap.add_annotation(
                         x=1.01, y=100, xref="paper", yref="y", 
@@ -567,7 +566,7 @@ if uploaded_file is not None:
                         font=dict(color="#DC2626", size=13, weight="bold")
                     )
                     
-                    # 85% 基準線 (標籤外推，避免遮擋)
+                    # 85% 基準線
                     fig_gap.add_hline(y=85, line_dash="dot", line_color="#2563EB", line_width=1.5)
                     fig_gap.add_annotation(
                         x=1.01, y=85, xref="paper", yref="y", 
