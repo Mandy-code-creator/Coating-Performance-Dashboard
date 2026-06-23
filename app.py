@@ -463,11 +463,12 @@ if uploaded_file is not None:
         # ==========================================
         # ==========================================
         # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (ALL DATA)]
+        # ==========================================
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Grouped Bar Design)]
         # ==========================================
         with tab_gap:
-            st.subheader("8. 全局績效落差分析 (實際績效% - 設定績效%)")
-            st.info("💡 此圖表顯示「所有塗料」的實際績效與設定績效的落差。紅柱代表未達標，綠柱代表達標或超標。游標移至柱狀圖上可查看詳細的「理論」與「實際」數值。")
+            st.subheader("8. 全局績效對比 (理論 vs 實際)")
+            st.info("💡 此圖表顯示「所有塗料」的理論與實際績效對比，並依據「落差幅度 (實際 - 理論)」由大到小排序。左側為未達標最嚴重的項目。(Displays all paints, sorted by performance gap from worst to best)")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -476,58 +477,69 @@ if uploaded_file is not None:
                     # Gom nhóm theo mã sơn và công dụng
                     df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                     
-                    # Tính toán độ chênh lệch
-                    df_gap_comp['績效落差%'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
+                    # Tính độ chênh lệch để sắp xếp (Thực tế - Lý thuyết)
+                    df_gap_comp['Gap'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
                     df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
                     
-                    # Sắp xếp từ kém nhất (âm nhiều nhất) đến tốt nhất
-                    df_gap_comp = df_gap_comp.sort_values(by='績效落差%')
+                    # Sắp xếp từ âm nhiều nhất (kém nhất) đến dương nhiều nhất (tốt nhất)
+                    df_gap_comp = df_gap_comp.sort_values(by='Gap', ascending=True)
                     
-                    # Phân loại màu sắc
-                    df_gap_comp['狀態'] = np.where(df_gap_comp['績效落差%'] >= 0, '達標/超標 (>=0)', '未達標 (<0)')
+                    fig_gap = go.Figure()
                     
-                    # --- ĐÃ THÊM: hover_data để hiển thị chi tiết Lý thuyết & Thực tế khi rê chuột ---
-                    fig_gap = px.bar(
-                        df_gap_comp, 
-                        x='Display_Label', 
-                        y='績效落差%', 
-                        color='狀態',
-                        color_discrete_map={'達標/超標 (>=0)': '#10B981', '未達標 (<0)': '#EF4444'},
-                        text=df_gap_comp['績效落差%'].apply(lambda x: f"{x:+.1f}%"),
-                        hover_data={
-                            'Display_Label': False, 
-                            '狀態': False,
-                            '設定績效%': ':.1f', # Hiệu suất lý thuyết
-                            '合計績效%': ':.1f', # Hiệu suất thực tế
-                            '績效落差%': ':.1f'  # Mức chênh lệch
-                        }
-                    )
+                    # Cột Lý thuyết (Tím)
+                    fig_gap.add_trace(go.Bar(
+                        x=df_gap_comp['Display_Label'], 
+                        y=df_gap_comp['設定績效%'], 
+                        name='設定績效% (Theoretical)', 
+                        marker_color='#6D28D9',
+                        marker_line_color='black', marker_line_width=1.2,
+                        text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
+                        textposition='auto',
+                        textfont=dict(weight='bold', color='white')
+                    ))
                     
-                    fig_gap.update_traces(
-                        textposition='auto', 
-                        textfont=dict(weight='bold'),
-                        marker_line_color='black', 
-                        marker_line_width=1.2
-                    )
+                    # Cột Thực tế (Cam)
+                    fig_gap.add_trace(go.Bar(
+                        x=df_gap_comp['Display_Label'], 
+                        y=df_gap_comp['合計績效%'], 
+                        name='合計績效% (Actual)', 
+                        marker_color='#F59E0B',
+                        marker_line_color='black', marker_line_width=1.2,
+                        text=df_gap_comp['合計績效%'].apply(lambda x: f'{x:.1f}%'),
+                        textposition='auto',
+                        textfont=dict(weight='bold', color='black')
+                    ))
+                    
+                    # Tự động điều chỉnh khoảng cách cột nếu dữ liệu ít
+                    num_items = len(df_gap_comp)
+                    dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
                     
                     fig_gap.update_layout(**common_layout)
                     fig_gap.update_layout(
+                        barmode='group',
                         height=600,
-                        title="<b>全廠數據: 績效落差對比 (Actual % - Theoretical %)</b>",
+                        bargap=dynamic_bargap,
+                        title="<b>全廠數據: 理論 vs 實際表現 (Actual vs Theoretical)</b>",
                         xaxis=dict(title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", tickangle=-45, automargin=True),
-                        yaxis=dict(title="<b>績效落差 Gap (%)</b>"),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=""),
+                        yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(100, df_gap_comp['設定績效%'].max() + 15)]),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         margin=dict(b=120, t=80)
                     )
                     
-                    # Đường phân cách mốc 0
-                    fig_gap.add_hline(y=0, line_width=2, line_color="black")
+                    # Đường giới hạn 90%
+                    fig_gap.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
+                    fig_gap.add_annotation(
+                        x=1, y=90, xref="paper", yref="y", 
+                        text="<b>90% Threshold</b>", 
+                        showarrow=False, xanchor="right", yanchor="bottom", yshift=5, 
+                        font=dict(color="#DC2626", size=13, weight="bold")
+                    )
                     
                     st.plotly_chart(fig_gap, use_container_width=True)
                 else:
-                    st.success("🎉 目前沒有足夠的數據可供分析。")
+                    st.success("🎉 目前沒有足夠的數據可供分析。(Not enough data for analysis)")
             else:
-                st.warning("⚠️ 找不到「設定績效%」欄位。")
+                st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found)")
         # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
