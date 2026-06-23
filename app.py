@@ -462,11 +462,11 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Vertical Bullet Chart - Perfect No-Overlap Layout)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Vertical Bullet Chart - Floating Target Labels)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效面專驗看板 (Professional Vertical Bullet Chart)")
-            st.info("💡 📊 橫向藍色背景帶為低目標區 (<=85%)。長條圖中間數值為「實際績效」，黑色橫線上方數值為「理論設定績效」。\n🚨 實際比理論低 >= 10% 顯示深紅柱；⚠️ 設定績效 <= 85% 且未達標顯示紅柱。")
+            st.info("💡 📊 橫向藍色背景帶為低目標區 (<=85%)。長條圖中間數值為「實際績效」，長條圖最上方獨立數值為「理論設定績效」。\n🚨 實際比理論低 >= 10% 顯示深紅柱；⚠️ 設定績效 <= 85% 且未達標顯示紅柱。")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -477,11 +477,9 @@ if uploaded_file is not None:
                     
                     # Tính độ chênh lệch để sắp xếp (Thực tế - Lý thuyết)
                     df_gap_comp['Gap'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
-                    
-                    # Trả lại nhãn trục X nguyên bản, sạch sẽ gọn gàng
                     df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
                     
-                    # Sắp xếp từ trái sang phải: Kém nhất nằm bên trái, tốt nhất nằm bên phải
+                    # Sắp xếp từ trái sang phải
                     df_gap_comp = df_gap_comp.sort_values(by='Gap', ascending=True)
                     
                     act_colors = []
@@ -501,7 +499,7 @@ if uploaded_file is not None:
                     
                     fig_gap = go.Figure()
                     
-                    # 1. BULLET ACT BAR: Cột đứng hiển thị hiệu suất thực tế (Chữ nằm ở GIỮA thân cột)
+                    # 1. BULLET ACT BAR: Cột đứng hiển thị hiệu suất thực tế (Khóa chữ ở giữa thân cột)
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(),
                         y=df_gap_comp['合計績效%'].tolist(),
@@ -510,16 +508,16 @@ if uploaded_file is not None:
                         marker_line_color='black', marker_line_width=1.2,
                         text=act_labels,
                         textposition='inside',
-                        insidetextanchor='middle', # KHÓA CHẶT Ở GIỮA: Giúp chữ không bao giờ chạm vào vạch đen ở đỉnh
+                        insidetextanchor='middle', 
                         textfont=dict(weight='bold', color='black', size=12),
                         width=0.45 
                     ))
                     
-                    # 2. BULLET TARGET MARKER: Vạch ngang đen chỉ định mức Lý thuyết (Hiển thị chữ trên đỉnh vạch)
+                    # 2. BULLET TARGET MARKER: Vạch đen chỉ định mức Lý thuyết (ĐÃ TẮT CHỮ Ở ĐÂY ĐỂ TRÁNH ĐÈ)
                     fig_gap.add_trace(go.Scatter(
                         x=df_gap_comp['Display_Label'].tolist(),
                         y=df_gap_comp['設定績效%'].tolist(),
-                        mode='markers+text', # Bật lại chữ lơ lửng trên biểu đồ theo yêu cầu
+                        mode='markers', 
                         name='設定績效% (Theoretical Target)',
                         marker=dict(
                             symbol='line-ew', 
@@ -527,9 +525,21 @@ if uploaded_file is not None:
                             color='black',
                             line=dict(width=3, color='black') 
                         ),
-                        text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'), 
-                        textposition='top center', # Luôn nằm phía trên vạch đen
-                        textfont=dict(weight='bold', color='#1E3A8A', size=11), # Chữ màu xanh navy đậm nét
+                        hoverinfo='skip'
+                    ))
+                    
+                    # 3. FLOATING THEORETICAL LABELS: Thuật toán đẩy số Lý thuyết luôn nổi lên trên đỉnh cao nhất
+                    # Tìm điểm cao nhất giữa Thực tế và Lý thuyết, cộng thêm 2.5% để tạo khoảng cách an toàn
+                    safe_y_positions = df_gap_comp[['設定績效%', '合計績效%']].max(axis=1) + 2.5
+                    
+                    fig_gap.add_trace(go.Scatter(
+                        x=df_gap_comp['Display_Label'].tolist(),
+                        y=safe_y_positions.tolist(),
+                        mode='text',
+                        text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
+                        textposition='top center',
+                        textfont=dict(weight='bold', color='#1E3A8A', size=11),
+                        showlegend=False, # Ẩn khỏi Legend vì đã có vạch đen đại diện
                         hoverinfo='skip'
                     ))
                     
@@ -537,7 +547,7 @@ if uploaded_file is not None:
                     dynamic_width = max(800, num_items * 65) 
                     y_max_limit = max(120, df_gap_comp['設定績效%'].max() + 15)
                     
-                    # 3. BULLET BACKGROUND ZONES: Dải nền phân cấp năng lực (Đậm đà rõ nét)
+                    # 4. BULLET BACKGROUND ZONES
                     shapes = [
                         dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=0, y1=85, xref="x", yref="y",
                              fillcolor="rgba(239, 68, 68, 0.15)", line_width=0, layer="below"),
@@ -556,7 +566,7 @@ if uploaded_file is not None:
                         title="<b>全廠數據: 塗料績效定量分析產能看板 (Global Vertical Bullet Chart)</b>",
                         xaxis=dict(
                             title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", 
-                            tickangle=-90, # Nghiêng 90 độ chuẩn mực, sạch sẽ
+                            tickangle=-45, 
                             automargin=True,
                             showline=True, linewidth=2, linecolor='black', mirror=True
                         ),
