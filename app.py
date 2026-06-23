@@ -585,17 +585,17 @@ if uploaded_file is not None:
             else:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found)")
         # ==========================================
+        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
         st.sidebar.header("📥 [4] 快速匯出報表 (HTML Export)")
         
-        # --- ĐÃ SỬA: ĐỔI THÀNH MULTISELECT ĐỂ CHỌN NHIỀU THÁNG CÙNG LÚC ---
         available_export_months = sorted(df['年月'].dropna().unique(), reverse=True)
         export_months_sel = st.sidebar.multiselect(
             "選擇匯出月份 (Select Export Month):", 
             options=available_export_months,
-            default=available_export_months[:1] # Mặc định chọn tháng mới nhất
+            default=available_export_months[:1]
         )
         
         report_view_sel = st.sidebar.radio(
@@ -609,7 +609,6 @@ if uploaded_file is not None:
             else:
                 try:
                     target_usages = ['正面漆', '背面漆'] 
-                    # --- ĐÃ SỬA: Lọc dữ liệu theo TẤT CẢ các tháng được chọn dùng isin() ---
                     df_word = df[(df['用途'].isin(target_usages)) & (df['年月'].isin(export_months_sel))].copy()
                     
                     if "View 2" in report_view_sel:
@@ -623,8 +622,6 @@ if uploaded_file is not None:
                         st.sidebar.error(f"❌ 找不到 {months_str_err} 的相關數據。(No data for selected months)")
                     else:
                         lines = sorted(df_word['線別'].unique())
-                        
-                        # Chuẩn bị chuỗi tên tháng để hiển thị trên tiêu đề
                         months_str_title = " & ".join(export_months_sel)
                         
                         html_content = f"""
@@ -721,54 +718,118 @@ if uploaded_file is not None:
                                 html_content += fig_line.to_html(full_html=False, include_plotlyjs=False)
                                 html_content += "</div>"
                                 
-                            # --- 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Export) ---
+                            # --- ĐÃ SỬA 2. THEORETICAL VS ACTUAL PERFORMANCE CHART (Export Version - Task 8 Professional Vertical Bullet Chart) ---
                             html_content += "<div class='keep-together'>"
-                            html_content += f"<h3>⚖️ Line {line} - 低設定績效塗料: 理論 vs 實際 (設定績效 <= 90% 且 實際 < 理論)</h3>"
+                            html_content += f"<h3>📊 Line {line} - 塗料績效定量分析產能看板 (Professional Vertical Bullet Chart)</h3>"
                             
-                            criteria = (df_line['設定績效%'] <= 90) & (df_line['合計績效%'] < df_line['設定績效%'])
-                            comp_df_line = df_line[criteria].dropna(subset=['設定績效%', '合計績效%'])
+                            comp_df_line = df_line.dropna(subset=['設定績效%', '合計績效%']).copy()
                             
                             if not comp_df_line.empty:
                                 df_bar_comp_exp = comp_df_line.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
+                                
+                                # 績效落差排序邏輯
+                                df_bar_comp_exp['Gap'] = df_bar_comp_exp['合計績效%'] - df_bar_comp_exp['設定績效%']
                                 df_bar_comp_exp['Display_Label'] = df_bar_comp_exp['塗料編號'] + '<br>(' + df_bar_comp_exp['用途'] + ')'
+                                df_bar_comp_exp = df_bar_comp_exp.sort_values(by='Gap', ascending=True)
+                                
+                                act_colors = []
+                                act_labels = []
+                                
+                                for _, row in df_bar_comp_exp.iterrows():
+                                    gap_val = row['合計績效%'] - row['設定績效%']
+                                    if gap_val <= -10:
+                                        act_colors.append('#990000') # 實際比理論低 >= 10% -> 深紅色 🚨
+                                        act_labels.append(f"🚨 {row['合計績效%']:.1f}%")
+                                    elif row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
+                                        act_colors.append('#DC2626') # 設定績效 <= 85% 且未達標 -> 紅色 ⚠️
+                                        act_labels.append(f"⚠️ {row['合計績效%']:.1f}%")
+                                    else:
+                                        act_colors.append('#F59E0B') # 正常 -> 橘黃色
+                                        act_labels.append(f"{row['合計績效%']:.1f}%")
                                 
                                 fig_comp_exp = go.Figure()
                                 
-                                text_theo = [f"{val:.1f}%" for val in df_bar_comp_exp['設定績效%']]
-                                text_actual = [f"{val:.1f}%" for val in df_bar_comp_exp['合計績效%']]
-                                
+                                # 1. BULLET ACT BAR (文字置中避免碰撞)
                                 fig_comp_exp.add_trace(go.Bar(
-                                    x=df_bar_comp_exp['Display_Label'].tolist(), 
-                                    y=df_bar_comp_exp['設定績效%'].tolist(), 
-                                    name='設定績效% (Theoretical)', marker_color='#6D28D9',
-                                    text=text_theo, textposition='auto', textfont=dict(color='white', weight='bold')
+                                    x=df_bar_comp_exp['Display_Label'].tolist(),
+                                    y=df_bar_comp_exp['合計績效%'].tolist(),
+                                    name='合計績效% (Actual)',
+                                    marker_color=act_colors,
+                                    marker_line_color='black', marker_line_width=1.2,
+                                    text=act_labels,
+                                    textposition='inside',
+                                    insidetextanchor='middle',
+                                    textfont=dict(weight='bold', color='black', size=12),
+                                    width=0.45
                                 ))
-                                fig_comp_exp.add_trace(go.Bar(
-                                    x=df_bar_comp_exp['Display_Label'].tolist(), 
-                                    y=df_bar_comp_exp['合計績效%'].tolist(), 
-                                    name='合計績效% (Actual)', marker_color='#F59E0B',
-                                    text=text_actual, textposition='auto', textfont=dict(color='black', weight='bold')
+                                
+                                # 2. BULLET TARGET MARKER (橫線標記)
+                                fig_comp_exp.add_trace(go.Scatter(
+                                    x=df_bar_comp_exp['Display_Label'].tolist(),
+                                    y=df_bar_comp_exp['設定績效%'].tolist(),
+                                    mode='markers',
+                                    name='設定績效% (Theoretical Target)',
+                                    marker=dict(
+                                        symbol='line-ew',
+                                        size=22,
+                                        color='black',
+                                        line=dict(width=3, color='black')
+                                    ),
+                                    hoverinfo='skip'
+                                ))
+                                
+                                # 3. FLOATING THEORETICAL LABELS (浮動解耦文字，避開圖形重疊)
+                                safe_y_positions = df_bar_comp_exp[['設定績效%', '合計績效%']].max(axis=1) + 2.5
+                                fig_comp_exp.add_trace(go.Scatter(
+                                    x=df_bar_comp_exp['Display_Label'].tolist(),
+                                    y=safe_y_positions.tolist(),
+                                    mode='text',
+                                    text=df_bar_comp_exp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
+                                    textposition='top center',
+                                    textfont=dict(weight='bold', color='#1E3A8A', size=11),
+                                    showlegend=False,
+                                    hoverinfo='skip'
                                 ))
                                 
                                 num_items = len(df_bar_comp_exp)
-                                dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
+                                dynamic_width = max(800, num_items * 65)
+                                y_max_limit = max(120, df_bar_comp_exp['設定績效%'].max() + 15)
+                                
+                                # 4. BULLET BACKGROUND ZONES (加深背景帶分佈)
+                                shapes = [
+                                    dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=0, y1=85, xref="x", yref="y",
+                                         fillcolor="rgba(239, 68, 68, 0.15)", line_width=0, layer="below"),
+                                    dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=85, y1=100, xref="x", yref="y",
+                                         fillcolor="rgba(245, 158, 11, 0.12)", line_width=0, layer="below"),
+                                    dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=100, y1=y_max_limit, xref="x", yref="y",
+                                         fillcolor="rgba(16, 185, 129, 0.15)", line_width=0, layer="below")
+                                ]
                                 
                                 fig_comp_exp.update_layout(**common_layout)
                                 fig_comp_exp.update_layout(
-                                    barmode='group', 
-                                    height=550, 
-                                    bargap=dynamic_bargap,
-                                    title=f"<b>Line {line} - 低設定績效塗料對比</b>", 
-                                    xaxis=dict(title="<b>塗料編號 & 用途</b>", tickangle=0, automargin=True),
-                                    yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(100, df_bar_comp_exp['設定績效%'].max() + 15)]),
-                                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                                    barmode='group',
+                                    width=dynamic_width,
+                                    height=600,
+                                    shapes=shapes,
+                                    title=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>",
+                                    xaxis=dict(
+                                        title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
+                                        tickangle=-45,
+                                        automargin=True,
+                                        showline=True, linewidth=2, linecolor='black', mirror=True
+                                    ),
+                                    yaxis=dict(
+                                        title="<b>績效能量級分佈 (%)</b>",
+                                        range=[0, y_max_limit],
+                                        showline=True, linewidth=2, linecolor='black', mirror=True
+                                    ),
+                                    legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1),
+                                    margin=dict(b=140, t=100, r=40, l=80)
                                 )
-                                fig_comp_exp.add_hline(y=90, line_dash="dash", line_color="#DC2626", line_width=2)
-                                fig_comp_exp.add_annotation(x=1, y=90, xref="paper", yref="y", text="<b>90% Threshold</b>", showarrow=False, xanchor="right", yanchor="bottom", font=dict(color="#DC2626", size=13, weight="bold"))
                                 
                                 html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
                             else:
-                                html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無符合低效塗料條件的數據。</p>"
+                                html_content += "<p style='color:green; font-weight:bold;'>🎉 目前此線別無可用數據可供分析。</p>"
                             html_content += "</div>"
                             
                             # --- 3. PARETO CHART ---
@@ -813,7 +874,6 @@ if uploaded_file is not None:
                             
                         html_content += "</div></body></html>"
                         
-                        # Chuẩn bị tên file khi tải xuống (kết nối các tháng bằng dấu gạch dưới)
                         file_months_str = "_".join(export_months_sel)
                         st.sidebar.download_button("📥 下載報表 (Download HTML)", data=html_content.encode('utf-8'), file_name=f"Report_{file_months_str}.html", mime="text/html")
                 except Exception as e:
