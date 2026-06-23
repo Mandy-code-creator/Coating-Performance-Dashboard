@@ -777,6 +777,7 @@ if uploaded_file is not None:
                                     width=0.5
                                 ))
                                 
+                                # ĐÃ SỬA: Giảm độ dày nét gạch ngang (Target) từ 3 xuống 1.5 để thanh thoát hơn
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['設定績效%'].tolist(),
@@ -786,7 +787,7 @@ if uploaded_file is not None:
                                         symbol='line-ew',
                                         size=22,
                                         color='black',
-                                        line=dict(width=3, color='black')
+                                        line=dict(width=1.5, color='black') # <-- Nét mỏng hơn tại đây
                                     ),
                                     hoverinfo='skip'
                                 ))
@@ -818,14 +819,14 @@ if uploaded_file is not None:
                                 fig_comp_exp.update_layout(**common_layout)
                                 fig_comp_exp.update_layout(
                                     barmode='group',
-                                    autosize=True, # ĐÃ SỬA: Ép tự động co giãn vừa khổ A4
+                                    autosize=True,
                                     height=650,
                                     shapes=shapes,
                                     title=dict(text=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>", x=0.5, font=dict(size=18)),
                                     xaxis=dict(
                                         title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
                                         tickangle=-90,
-                                        tickfont=dict(size=9), # ĐÃ SỬA: Giảm size chữ để khi bị bóp vào A4 không bị đè
+                                        tickfont=dict(size=9),
                                         automargin=True,
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
