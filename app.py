@@ -686,7 +686,7 @@ if uploaded_file is not None:
                                     symbol='用途', symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
                                     hover_data={'塗料序號': False, '用途': True, '合計績效%': ':.2f', '合計理論耗用': ':,.0f', 'Δ耗用 (Deviation)': ':,.0f'}, 
                                     color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
-                                    category_orders={"績效等級": labels_global}, hover_name='塗料編號'
+                                    category_orders={"績效等級": labels_global}
                                 )
 
                                 needs_improve_line = plot_df_line[plot_df_line['合計績效%'] < 90]
@@ -706,13 +706,14 @@ if uploaded_file is not None:
                                 else:
                                     top5_text_exp = "<span style='color:#008000; font-size:14px'><b>🎉 績效良好<br>無需改善</b></span>"
 
-                                fig_line.add_annotation(x=1.02, y=0.9, xref="paper", yref="paper", xanchor="left", yanchor="top", text=top5_text_exp, showarrow=False, align="left", bgcolor="#f9fbfd", bordercolor="#e6e6e6", borderwidth=1, borderpad=10)
+                                # ĐÃ SỬA: Trả Legend về bên phải mặc định.
+                                # Dời cái bảng TOP 5 xuống góc dưới cùng bên phải (y=0.0) để chia không gian với Legend
+                                fig_line.add_annotation(x=1.02, y=0.0, xref="paper", yref="paper", xanchor="left", yanchor="bottom", text=top5_text_exp, showarrow=False, align="left", bgcolor="#f9fbfd", bordercolor="#e6e6e6", borderwidth=1, borderpad=10)
 
                                 y_min_exp = plot_df_line['合計績效%'].min() - 5
                                 y_max_exp = max(120, plot_df_line['合計績效%'].max() + 5)
                                 fig_line.update_yaxes(range=[y_min_exp, y_max_exp])
                                 
-                                # ĐÃ SỬA: Đặt range từ 0.5 đến max + 1.5 để ẩn đi số 0 và -1
                                 max_x_val = plot_df_line['塗料序號'].max()
                                 fig_line.update_xaxes(range=[0.5, max_x_val + 1.5])
                                 
@@ -727,17 +728,17 @@ if uploaded_file is not None:
                                     title=dict(text=f"<b>Line {line} 績效概覽 (Performance Overview)</b>", x=0.5), 
                                     xaxis=dict(title="<b>項次</b>", showline=True, linewidth=2, linecolor='black', mirror=True, title_font=dict(weight='bold'), dtick=1), 
                                     yaxis_title="<b>合計績效 (%)</b>", 
-                                    margin=dict(r=200, t=120), 
-                                    legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1)
+                                    margin=dict(r=200, t=80) # Trả t=80 cho thoáng tiêu đề
+                                    # XÓA Legend ngang ở đây, để nó tự động xếp dọc bên phải
                                 )
                                 fig_line.update_traces(marker=dict(line=dict(width=1, color='black')))
                                 
-                                html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
+                                html_content += "<div class='keep-together' style='overflow-x: auto;'>"
                                 html_content += fig_line.to_html(full_html=False, include_plotlyjs='cdn')
                                 html_content += "</div>"
                                 
                             # --- 2. BULLET CHART EXPORT ---
-                            html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
+                            html_content += "<div class='keep-together' style='overflow-x: auto;'>"
                             
                             comp_df_line = df_line.dropna(subset=['設定績效%', '合計績效%']).copy()
                             
@@ -807,6 +808,9 @@ if uploaded_file is not None:
                                 num_items = len(df_bar_comp_exp)
                                 y_max_limit = max(130, df_bar_comp_exp['設定績效%'].max() + 25) 
                                 
+                                # ĐÃ SỬA: Trả lại chiều rộng linh hoạt. Nếu ít data, khung tự gom lại vừa vặn. Nếu nhiều thì tạo thanh cuộn.
+                                dynamic_width = max(800, num_items * 60)
+                                
                                 shapes = [
                                     dict(type="rect", x0=-0.5, x1=num_items-0.5, y0=0, y1=85, xref="x", yref="y",
                                          fillcolor="rgba(239, 68, 68, 0.15)", line_width=0, layer="below"),
@@ -820,7 +824,7 @@ if uploaded_file is not None:
                                 fig_comp_exp.update_layout(
                                     barmode='group',
                                     autosize=False, 
-                                    width=1200, 
+                                    width=dynamic_width, # Gọi lại chiều rộng thông minh
                                     height=650,
                                     shapes=shapes,
                                     title=dict(text=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>", x=0.5, font=dict(size=18)),
@@ -836,8 +840,9 @@ if uploaded_file is not None:
                                         range=[0, y_max_limit],
                                         showline=True, linewidth=2, linecolor='black', mirror=True
                                     ),
-                                    legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="right", x=1),
-                                    margin=dict(b=180, t=110, r=40, l=60)
+                                    # ĐÃ SỬA: Đặt Legend nằm ngay giữa, trên biểu đồ nhưng dưới Title
+                                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                                    margin=dict(b=180, t=100, r=40, l=60)
                                 )
                                 
                                 html_content += fig_comp_exp.to_html(full_html=False, include_plotlyjs='cdn')
@@ -846,7 +851,7 @@ if uploaded_file is not None:
                             html_content += "</div>"
                             
                             # --- 3. PARETO CHART ---
-                            html_content += "<div class='keep-together' style='display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%;'>"
+                            html_content += "<div class='keep-together' style='overflow-x: auto;'>"
                             html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                             pareto_df_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                             if not pareto_df_exp.empty:
