@@ -462,8 +462,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2)]
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2 with Border Frame)]
         # ==========================================
         with tab_gap:
             st.subheader("8. 全局績效對比 (理論 vs 實際 - 多階預警)")
@@ -494,19 +493,16 @@ if uploaded_file is not None:
                             theo_colors.append('#6D28D9') # Nhóm bình thường -> Tím
                             
                         # Tính toán khoảng cách thực tế hụt bao nhiêu % so với lý thuyết
-                        gap_val = row['合計績效%'] - row['設定績效%']
+                        gap_val = row['合計績效%'] - row['設定績ox%']
                         
                         # 2. Thuật toán phân tầng màu sắc động cho cột Thực tế (Actual)
                         if gap_val <= -10:
-                            # CẢNH BÁO CẤP 1: Thực tế thấp hơn lý thuyết từ 10% trở lên (Bất kể mức thiết kế nào)
                             act_colors.append('#990000') # Đỏ sẫm / Đỏ đô
                             act_labels.append(f"🚨 {row['合計績效%']:.1f}%")
                         elif row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
-                            # CẢNH BÁO CẤP 2: Thuộc nhóm nền thấp (<=85%) và thực tế bị hụt chỉ tiêu nhẹ
                             act_colors.append('#DC2626') # Đỏ tươi
                             act_labels.append(f"⚠️ {row['合計績效%']:.1f}%")
                         else:
-                            # TRƯỜNG HỢP BÌNH THƯỜNG: Đạt chỉ tiêu hoặc hụt không đáng kể
                             act_colors.append('#F59E0B') # Cam mặc định
                             act_labels.append(f"{row['合計績效%']:.1f}%")
                     
@@ -524,7 +520,7 @@ if uploaded_file is not None:
                         textfont=dict(weight='bold', color='white')
                     ))
                     
-                    # Add trace cho cột Thực tế (Áp dụng nhãn và màu phân cấp động)
+                    # Add trace cho cột Thực tế
                     fig_gap.add_trace(go.Bar(
                         x=df_gap_comp['Display_Label'].tolist(), 
                         y=df_gap_comp['合計績效%'].tolist(), 
@@ -545,8 +541,18 @@ if uploaded_file is not None:
                         height=600,
                         bargap=dynamic_bargap,
                         title="<b>全廠數據: 理論 vs 實際多階預警看板 (Multi-level Alert Analysis)</b>",
-                        xaxis=dict(title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", tickangle=-45, automargin=True),
-                        yaxis=dict(title="<b>績效 (%)</b>", range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)]),
+                        # --- ĐÃ THÊM ĐỦ KHUNG BAO 4 CẠNH CHO TRỤC X VÀ TRỤC Y TẠI ĐÂY ---
+                        xaxis=dict(
+                            title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", 
+                            tickangle=-45, 
+                            automargin=True,
+                            showline=True, linewidth=2, linecolor='black', mirror=True # Tạo viền hộp khép kín
+                        ),
+                        yaxis=dict(
+                            title="<b>績效 (%)</b>", 
+                            range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)],
+                            showline=True, linewidth=2, linecolor='black', mirror=True # Tạo viền hộp khép kín
+                        ),
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         margin=dict(b=120, t=80, r=120) 
                     )
