@@ -462,11 +462,12 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found in dataset)")
         # ==========================================
         # ==========================================
-        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Multi-level Alert Design v2 with Border Frame - Fixed Legend)]
+        # ==========================================
+        # [NEW TAB 8: GLOBAL PERFORMANCE GAP (Professional Bullet Chart - Full Labels)]
         # ==========================================
         with tab_gap:
-            st.subheader("8. 全局績效對比 (理論 vs 實際 - 多階預警)")
-            st.info("💡 預警視覺邏輯 (Visual Alert Logic):\n1. 「實際比理論低 >= 10%」：實際柱變更為深紅色並加上 🚨 符號 (Severe drops >=10% turn Deep Red with 🚨).\n2. 「設定績效 <= 85% 且 實際 < 理論」：實際柱變更為紅色並加上 ⚠️ 符號 (Low target drops turn Red with ⚠️).")
+            st.subheader("8. 全局績效面專驗看板 (Professional Bullet Chart Analysis)")
+            st.info("💡 📊 藍色背景帶為低目標區 (<=85%)。長條圖內數值為「實際績效」，黑色標記上方數值為「理論設定績效」。\n🚨 實際比理論低 >= 10% 顯示深紅柱；⚠️ 設定績效 <= 85% 且未達標顯示紅柱。")
 
             if '設定績效%' in filtered_df.columns:
                 gap_df = filtered_df.dropna(subset=['設定績效%', '合計績效%']).copy()
@@ -474,105 +475,93 @@ if uploaded_file is not None:
                 if not gap_df.empty:
                     df_gap_comp = gap_df.groupby(['塗料編號', '用途'])[['設定績效%', '合計績效%']].mean().reset_index()
                     
-                    # 績效落差排序邏輯 (實際 - 理論)
                     df_gap_comp['Gap'] = df_gap_comp['合計績效%'] - df_gap_comp['設定績效%']
-                    df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + '<br>(' + df_gap_comp['用途'] + ')'
+                    df_gap_comp['Display_Label'] = df_gap_comp['塗料編號'] + ' (' + df_gap_comp['用途'] + ')'
                     
-                    # 依據落差由小到大排序 (最差的在最左側)
                     df_gap_comp = df_gap_comp.sort_values(by='Gap', ascending=True)
                     
-                    theo_colors = []
                     act_colors = []
                     act_labels = []
                     
                     for _, row in df_gap_comp.iterrows():
-                        # 1. 理論柱顏色判定 (Theoretical)
-                        if row['設定績效%'] <= 85:
-                            theo_colors.append('#2563EB') # 低目標 -> 藍色
-                        else:
-                            theo_colors.append('#6D28D9') # 正常目標 -> 紫色
-                            
                         gap_val = row['合計績效%'] - row['設定績效%']
-                        
-                        # 2. 實際柱動態多階預警顏色與圖示
                         if gap_val <= -10:
-                            act_colors.append('#990000') # 實際大幅落後理論 >= 10% -> 深紅色
+                            act_colors.append('#990000') 
                             act_labels.append(f"🚨 {row['合計績效%']:.1f}%")
                         elif row['設定績效%'] <= 85 and row['合計績效%'] < row['設定績效%']:
-                            act_colors.append('#DC2626') # 基準內未達標 -> 紅色
+                            act_colors.append('#DC2626') 
                             act_labels.append(f"⚠️ {row['合計績效%']:.1f}%")
                         else:
-                            act_colors.append('#F59E0B') # 正常 -> 橘黃色
+                            act_colors.append('#F59E0B') 
                             act_labels.append(f"{row['合計績效%']:.1f}%")
                     
                     fig_gap = go.Figure()
                     
-                    # 繪製理論柱
+                    # 1. BULLET ACT BAR: Thanh ngang hiển thị hiệu suất thực tế
                     fig_gap.add_trace(go.Bar(
-                        x=df_gap_comp['Display_Label'].tolist(), 
-                        y=df_gap_comp['設定績效%'].tolist(), 
-                        name='設定績效% (Theoretical)', 
-                        marker_color=theo_colors,
-                        marker_line_color='black', marker_line_width=1.2,
-                        text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'),
-                        textposition='auto',
-                        textfont=dict(weight='bold', color='white')
-                    ))
-                    
-                    # 繪製實際柱
-                    fig_gap.add_trace(go.Bar(
-                        x=df_gap_comp['Display_Label'].tolist(), 
-                        y=df_gap_comp['合計績效%'].tolist(), 
-                        name='合計績效% (Actual)', 
+                        x=df_gap_comp['合計績效%'].tolist(),
+                        y=df_gap_comp['Display_Label'].tolist(),
+                        orientation='h',
+                        name='合計績效% (Actual)',
                         marker_color=act_colors,
                         marker_line_color='black', marker_line_width=1.2,
-                        text=act_labels, 
-                        textposition='auto',
-                        textfont=dict(weight='bold', color='black')
+                        text=act_labels,
+                        textposition='inside',
+                        textfont=dict(weight='bold', color='black'),
+                        width=0.45 
                     ))
                     
+                    # 2. BULLET TARGET MARKER: Vạch đen chỉ định mức Lý thuyết (Đã bật hiển thị số)
+                    fig_gap.add_trace(go.Scatter(
+                        x=df_gap_comp['設定績效%'].tolist(),
+                        y=df_gap_comp['Display_Label'].tolist(),
+                        mode='markers+text', # Bật chế độ hiển thị Text
+                        name='設定績效% (Theoretical Target)',
+                        marker=dict(
+                            symbol='line-ns', 
+                            size=22,
+                            linewidth=3,
+                            color='black'
+                        ),
+                        text=df_gap_comp['設定績效%'].apply(lambda x: f'{x:.1f}%'), # Nạp số lý thuyết
+                        textposition='top center', # Đẩy số lên trên vạch đen
+                        textfont=dict(weight='bold', color='#1E3A8A', size=12), # Màu xanh đen, in đậm
+                        hoverinfo='skip'
+                    ))
+                    
+                    # Tăng chiều cao để có đủ không gian cho chữ Lý thuyết hiển thị không bị đè
                     num_items = len(df_gap_comp)
-                    dynamic_bargap = 0.7 if num_items <= 3 else (0.5 if num_items <= 6 else 0.2)
+                    dynamic_height = max(500, num_items * 55) 
+                    x_max_limit = max(120, df_gap_comp['設定績效%'].max() + 15)
+                    
+                    # 3. BULLET BACKGROUND ZONES: Dải màu nền
+                    shapes = [
+                        dict(type="rect", x0=0, x1=85, y0=-0.5, y1=num_items-0.5, xref="x", yref="y",
+                             fillcolor="rgba(239, 68, 68, 0.08)", linewidth=0, layer="below"),
+                        dict(type="rect", x0=85, x1=100, y0=-0.5, y1=num_items-0.5, xref="x", yref="y",
+                             fillcolor="rgba(245, 158, 11, 0.06)", linewidth=0, layer="below"),
+                        dict(type="rect", x0=100, x1=x_max_limit, y0=-0.5, y1=num_items-0.5, xref="x", yref="y",
+                             fillcolor="rgba(16, 185, 129, 0.08)", linewidth=0, layer="below")
+                    ]
                     
                     fig_gap.update_layout(**common_layout)
                     fig_gap.update_layout(
-                        barmode='group',
-                        height=600,
-                        bargap=dynamic_bargap,
-                        title="<b>全廠數據: 理論 vs 實際多階預警看板 (Multi-level Alert Analysis)</b>",
+                        height=dynamic_height,
+                        shapes=shapes,
+                        title="<b>全廠數據: 塗料績效定量分析產能看板 (Global Bullet Chart Analysis)</b>",
                         xaxis=dict(
-                            title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", 
-                            tickangle=-45, 
-                            automargin=True,
-                            showline=True, linewidth=2, linecolor='black', mirror=True
+                            title="<b>績效能量級分佈 (%)</b>",
+                            range=[0, x_max_limit],
+                            showline=True, linewidth=2, linecolor='black', mirror=True,
+                            gridcolor='#e6e6e6'
                         ),
                         yaxis=dict(
-                            title="<b>績效 (%)</b>", 
-                            range=[0, max(110, df_gap_comp['設定績效%'].max() + 15)],
+                            title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
+                            autorange='reversed', 
                             showline=True, linewidth=2, linecolor='black', mirror=True
                         ),
-                        # --- ĐÃ SỬA: Đẩy Legend lên y=1.08 ---
-                        legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1),
-                        # --- ĐÃ SỬA: Tăng lề trên t=100 để chừa chỗ cho Legend ---
-                        margin=dict(b=120, t=100, r=120) 
-                    )
-                    
-                    # 100% 目標線
-                    fig_gap.add_hline(y=100, line_dash="dash", line_color="#DC2626", line_width=2)
-                    fig_gap.add_annotation(
-                        x=1.01, y=100, xref="paper", yref="y", 
-                        text="<b>100% Target</b>", 
-                        showarrow=False, xanchor="left", yanchor="bottom", yshift=5, 
-                        font=dict(color="#DC2626", size=13, weight="bold")
-                    )
-                    
-                    # 85% 基準線
-                    fig_gap.add_hline(y=85, line_dash="dot", line_color="#2563EB", line_width=1.5)
-                    fig_gap.add_annotation(
-                        x=1.01, y=85, xref="paper", yref="y", 
-                        text="<b>85% Baseline</b>", 
-                        showarrow=False, xanchor="left", yanchor="bottom", yshift=5, 
-                        font=dict(color="#2563EB", size=12, weight="bold")
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        margin=dict(b=80, t=100, r=40, l=150)
                     )
                     
                     st.plotly_chart(fig_gap, use_container_width=True)
