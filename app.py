@@ -586,7 +586,6 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found)")
         # ==========================================
         # ==========================================
-        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
@@ -685,10 +684,11 @@ if uploaded_file is not None:
                                 fig_line = px.scatter(
                                     plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
                                     symbol='用途', symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
-                                    hover_data={'塗料序號': False, '用途': True, '合計績效%': ':.2f', '合計理論耗用': ':,.0f', 'Δ耗用 (Deviation)': ':,.0f'}, 
+                                    # ĐÃ SỬA: Thêm '年月': True vào hover_data để hiện thông tin tháng
+                                    hover_data={'年月': True, '塗料序號': False, '用途': True, '合計績效%': ':.2f', '合計理論耗用': ':,.0f', 'Δ耗用 (Deviation)': ':,.0f'}, 
                                     color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                     category_orders={"績效等級": labels_global},
-                                    hover_name='塗料編號' # ĐÃ SỬA: Thêm lại thuộc tính này để hiện mã sơn khi gà chuột
+                                    hover_name='塗料編號' 
                                 )
 
                                 needs_improve_line = plot_df_line[plot_df_line['合計績效%'] < 90]
@@ -872,9 +872,10 @@ if uploaded_file is not None:
                             over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 200].copy()
                             if not over_used_df_line.empty:
                                 top10_table = over_used_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
-                                show_cols = ['塗料編號', '用途', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
+                                # ĐÃ SỬA: Thêm cột '年月' vào danh sách hiển thị
+                                show_cols = ['年月', '塗料編號', '用途', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
                                 top10_table = top10_table[show_cols]
-                                top10_table.columns = ['塗料編號 (Paint ID)', '用途 (Usage)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
+                                top10_table.columns = ['年月 (Month)', '塗料編號 (Paint ID)', '用途 (Usage)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
                                 
                                 top10_table['合計績效 (%)'] = top10_table['合計績效 (%)'].apply(lambda x: f"{x:.2f}%")
                                 top10_table['🔥 超耗量 (Over-used)'] = top10_table['🔥 超耗量 (Over-used)'].apply(lambda x: f"{x:,.0f}")
