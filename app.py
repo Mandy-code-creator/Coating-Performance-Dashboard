@@ -586,6 +586,7 @@ if uploaded_file is not None:
                 st.warning("⚠️ 找不到「設定績效%」欄位。(Column '設定績效%' not found)")
         # ==========================================
         # ==========================================
+        # ==========================================
         # [ 4. EXPORT REPORT TO HTML ]
         # ==========================================
         st.sidebar.markdown("---")
@@ -686,7 +687,8 @@ if uploaded_file is not None:
                                     symbol='用途', symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
                                     hover_data={'塗料序號': False, '用途': True, '合計績效%': ':.2f', '合計理論耗用': ':,.0f', 'Δ耗用 (Deviation)': ':,.0f'}, 
                                     color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
-                                    category_orders={"績效等級": labels_global}
+                                    category_orders={"績效等級": labels_global},
+                                    hover_name='塗料編號' # ĐÃ SỬA: Thêm lại thuộc tính này để hiện mã sơn khi gà chuột
                                 )
 
                                 needs_improve_line = plot_df_line[plot_df_line['合計績效%'] < 90]
@@ -777,7 +779,6 @@ if uploaded_file is not None:
                                     width=0.5
                                 ))
                                 
-                                # ĐÃ SỬA: Giảm độ dày nét gạch ngang (Target) từ 3 xuống 1.5 để thanh thoát hơn
                                 fig_comp_exp.add_trace(go.Scatter(
                                     x=df_bar_comp_exp['Display_Label'].tolist(),
                                     y=df_bar_comp_exp['設定績效%'].tolist(),
@@ -787,7 +788,7 @@ if uploaded_file is not None:
                                         symbol='line-ew',
                                         size=22,
                                         color='black',
-                                        line=dict(width=1.5, color='black') # <-- Nét mỏng hơn tại đây
+                                        line=dict(width=1.5, color='black') 
                                     ),
                                     hoverinfo='skip'
                                 ))
