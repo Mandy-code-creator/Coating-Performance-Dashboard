@@ -823,7 +823,7 @@ if uploaded_file is not None:
                                     autosize=True,
                                     height=650,
                                     shapes=shapes,
-                                    title=dict(text=f"<b>Line {line} - 理論 vs 實際多階預警子彈圖</b>", x=0.5, font=dict(size=18)),
+                                    title=dict(text=f"<b>Line {line} - 理論與實際比較圖</b>", x=0.5, font=dict(size=18)),
                                     xaxis=dict(
                                         title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>",
                                         tickangle=-90,
