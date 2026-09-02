@@ -695,6 +695,12 @@ if uploaded_file is not None:
                                     margin-bottom: 30px;
                                 }}
 
+                                /* --- LỆNH ÉP XUỐNG TRANG --- */
+                                .page-break {{
+                                    page-break-before: always; 
+                                    break-before: page;
+                                }}
+
                                 .styled-table {{ border-collapse: collapse; margin: 25px 0; font-size: 0.9em; font-family: sans-serif; width: 100%; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15); }}
                                 .styled-table thead tr {{ background-color: #009879; color: #ffffff; text-align: center; }}
                                 .styled-table th, .styled-table td {{ padding: 12px 15px; border: 1px solid #ddd; text-align: center; }}
@@ -706,6 +712,8 @@ if uploaded_file is not None:
                                     body {{ background-color: white; -webkit-print-color-adjust: exact; padding: 0; }}
                                     .container {{ box-shadow: none; padding: 0; max-width: 100%; width: 100%; }}
                                     .keep-together {{ page-break-inside: avoid !important; }}
+                                    /* Ép trang cứng khi in */
+                                    .page-break {{ page-break-before: always !important; break-before: page !important; }}
                                 }}
                             </style>
                         </head>
@@ -714,7 +722,11 @@ if uploaded_file is not None:
                             <h1>📊 塗料生產績效報告 - {months_str_title} {report_title_suffix}</h1>
                         """
                         
-                        for line in lines:
+                        # --- ĐÃ SỬA: Dùng enumerate để thêm thẻ ngắt trang ---
+                        for index, line in enumerate(lines):
+                            if index > 0:
+                                html_content += "<div class='page-break'></div>"
+                                
                             html_content += f"<h2>🏭 線別 (Line): {line}</h2>"
                             df_line = df_word[df_word['線別'] == line].copy()
                             
@@ -730,7 +742,6 @@ if uploaded_file is not None:
                                 fig_line = px.scatter(
                                     plot_df_line, x='塗料序號', y='合計績效%', color='績效等級',
                                     symbol='用途', symbol_map={"正面漆": "circle", "背面漆": "diamond"}, 
-                                    # ĐÃ SỬA: Thêm '年月': True vào hover_data để hiện thông tin tháng
                                     hover_data={'年月': True, '塗料序號': False, '用途': True, '合計績效%': ':.2f', '合計理論耗用': ':,.0f', 'Δ耗用 (Deviation)': ':,.0f'}, 
                                     color_discrete_map=perf_color_map, size='合計理論耗用', size_max=30,
                                     category_orders={"績效等級": labels_global},
@@ -895,14 +906,12 @@ if uploaded_file is not None:
                             html_content += "<div class='keep-together' style='width: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column;'>"
                             html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
                             
-                            # Lọc và tính toán dữ liệu
                             pareto_df_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
                             
                             if not pareto_df_exp.empty:
                                 pareto_df_exp = pareto_df_exp.sort_values(by='Δ耗用 (Deviation)', ascending=False)
                                 total_deviation = pareto_df_exp['Δ耗用 (Deviation)'].sum()
                                 
-                                # Xử lý 100%: Gom các mã từ top 20 trở đi thành "其他 (Others)"
                                 if len(pareto_df_exp) > 20:
                                     top_19 = pareto_df_exp.head(19).copy()
                                     others_sum = pareto_df_exp.iloc[19:]['Δ耗用 (Deviation)'].sum()
@@ -911,18 +920,14 @@ if uploaded_file is not None:
                                 else:
                                     top_pareto_exp = pareto_df_exp.copy()
                                     
-                                # Tính lại % lũy kế trên 20 cột đã gộp
                                 top_pareto_exp['累計%'] = top_pareto_exp['Δ耗用 (Deviation)'].cumsum() / total_deviation * 100
                                 
-                                # Khởi tạo biểu đồ
                                 fig_pareto_exp = go.Figure()
                                 fig_pareto_exp.add_trace(go.Bar(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                                 fig_pareto_exp.add_trace(go.Scatter(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                                 
-                                # Cấu hình Layout chung
                                 fig_pareto_exp.update_layout(**common_layout, height=650, autosize=True, title=dict(text=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>", x=0.5))
                                 
-                                # Cấu hình chi tiết Trục tọa độ, Margin và Legend
                                 fig_pareto_exp.update_layout(
                                     xaxis=dict(
                                         title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), 
@@ -936,14 +941,13 @@ if uploaded_file is not None:
                                     yaxis=dict(
                                         title="<b>超耗量 (Over-used Volume)</b>"
                                     ), 
-                                    # --- TRỤC Y2 ĐÃ ĐƯỢC CHỈNH SỬA TẠI ĐÂY ---
                                     yaxis2=dict(
                                         title="<b>累計% (Cumulative %)</b>", 
                                         overlaying='y', 
                                         side='right', 
-                                        range=[0, 102], # Hơi dư một chút để đường line không chạm mép trên
-                                        tickmode='array', # Bắt buộc Plotly dùng vạch chia do bạn chỉ định
-                                        tickvals=[0, 20, 40, 60, 80, 100], # Mốc chia cố định
+                                        range=[0, 102], 
+                                        tickmode='array',
+                                        tickvals=[0, 20, 40, 60, 80, 100], 
                                         showline=True, 
                                         linewidth=2, 
                                         linecolor='black'
@@ -959,7 +963,6 @@ if uploaded_file is not None:
                                     margin=dict(b=160, t=100, r=80) 
                                 )
                                 
-                                # Xuất ra HTML
                                 html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
                             else:
                                 html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
@@ -972,7 +975,6 @@ if uploaded_file is not None:
                             over_used_df_line = df_line[df_line['Δ耗用 (Deviation)'] > 200].copy()
                             if not over_used_df_line.empty:
                                 top10_table = over_used_df_line.sort_values(by='Δ耗用 (Deviation)', ascending=False).head(10)
-                                # ĐÃ SỬA: Thêm cột '年月' vào danh sách hiển thị
                                 show_cols = ['年月', '塗料編號', '用途', '油漆廠商', '線別', '合計績效%', 'Δ耗用 (Deviation)']
                                 top10_table = top10_table[show_cols]
                                 top10_table.columns = ['年月 (Month)', '塗料編號 (Paint ID)', '用途 (Usage)', '油漆廠商 (Supplier)', '線別 (Line)', '合計績效 (%)', '🔥 超耗量 (Over-used)']
