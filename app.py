@@ -848,22 +848,62 @@ if uploaded_file is not None:
                             # --- 3. PARETO CHART ---
                             html_content += "<div class='keep-together' style='width: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column;'>"
                             html_content += f"<h3>🚨 異常超耗柏拉圖 (Pareto Priority)</h3>"
+                            
+                            # Lọc và tính toán dữ liệu
                             pareto_df_exp = df_line[df_line['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+                            
                             if not pareto_df_exp.empty:
                                 pareto_df_exp = pareto_df_exp.sort_values(by='Δ耗用 (Deviation)', ascending=False)
                                 pareto_df_exp['累計%'] = pareto_df_exp['Δ耗用 (Deviation)'].cumsum() / pareto_df_exp['Δ耗用 (Deviation)'].sum() * 100
                                 top_pareto_exp = pareto_df_exp.head(20)
                                 
+                                # Khởi tạo biểu đồ
                                 fig_pareto_exp = go.Figure()
                                 fig_pareto_exp.add_trace(go.Bar(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                                 fig_pareto_exp.add_trace(go.Scatter(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                                 
+                                # Cấu hình Layout chung (bạn nhớ đảm bảo biến common_layout đã được định nghĩa trước đó)
                                 fig_pareto_exp.update_layout(**common_layout, height=650, autosize=True, title=dict(text=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>", x=0.5))
-                                fig_pareto_exp.update_layout(xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True), yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"), yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'), showlegend=True, margin=dict(b=160))
                                 
+                                # Cấu hình chi tiết Trục tọa độ, Margin và Legend (Đã sửa lỗi đè chữ)
+                                fig_pareto_exp.update_layout(
+                                    xaxis=dict(
+                                        title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), 
+                                        tickangle=-90, 
+                                        automargin=True, 
+                                        showline=True, 
+                                        linewidth=2, 
+                                        linecolor='black', 
+                                        mirror=True
+                                    ), 
+                                    yaxis=dict(
+                                        title="<b>超耗量 (Over-used Volume)</b>"
+                                    ), 
+                                    yaxis2=dict(
+                                        title="<b>累計% (Cumulative %)</b>", 
+                                        overlaying='y', 
+                                        side='right', 
+                                        range=[0, 105], 
+                                        showline=True, 
+                                        linewidth=2, 
+                                        linecolor='black'
+                                    ), 
+                                    showlegend=True,
+                                    legend=dict(
+                                        orientation="h",      # Dàn chú giải nằm ngang
+                                        yanchor="bottom",     # Neo theo lề dưới
+                                        y=1.05,               # Đẩy lên trên biểu đồ (tăng nhẹ lên 1.05 cho thoáng)
+                                        xanchor="right",      # Neo lề phải
+                                        x=1                   # Căn sát lề phải
+                                    ),
+                                    margin=dict(b=160, t=80, r=80) # Mở rộng lề trên và lề phải để chứa chú giải & tên trục Y2
+                                )
+                                
+                                # Xuất ra HTML
                                 html_content += fig_pareto_exp.to_html(full_html=False, include_plotlyjs='cdn')
                             else:
                                 html_content += "<p style='color:green; font-weight:bold;'>🎉 目前無超耗塗料！ (No over-consumption for this line)</p>"
+                            
                             html_content += "</div>"
 
                             # --- 4. TOP 10 TABLE ---
