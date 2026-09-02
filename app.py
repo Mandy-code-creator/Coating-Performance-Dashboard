@@ -198,17 +198,39 @@ if uploaded_file is not None:
                 # Tính lại % lũy kế trên dữ liệu đã gộp
                 top_pareto['累計%'] = top_pareto['Δ耗用 (Deviation)'].cumsum() / total_deviation * 100
                 
-                # --- PHẦN VẼ BIỂU ĐỒ GIỮ NGUYÊN NHƯ CŨ ---
+                # --- PHẦN VẼ BIỂU ĐỒ ---
                 fig_pareto = go.Figure()
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                 
                 fig_pareto.update_layout(**common_layout)
                 fig_pareto.update_layout(
-                    xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
-                    yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
-                    yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                    height=650, title="<b>Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
+                    xaxis=dict(
+                        title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), 
+                        tickangle=-90, 
+                        automargin=True, 
+                        showline=True, 
+                        linewidth=2, 
+                        linecolor='black', 
+                        mirror=True
+                    ),
+                    yaxis=dict(
+                        title="<b>超耗量 (Over-used Volume)</b>"
+                    ),
+                    # --- ĐÃ CẬP NHẬT TRỤC Y2 TẠI ĐÂY ---
+                    yaxis2=dict(
+                        title="<b>累計% (Cumulative %)</b>", 
+                        overlaying='y', 
+                        side='right', 
+                        range=[0, 102], 
+                        tickmode='array',
+                        tickvals=[0, 20, 40, 60, 80, 100], 
+                        showline=True, 
+                        linewidth=2, 
+                        linecolor='black'
+                    ),
+                    height=650, 
+                    title="<b>Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
                     showlegend=True, 
                     legend=dict(
                         orientation="h",
@@ -220,6 +242,8 @@ if uploaded_file is not None:
                     margin=dict(b=160, t=100, r=80)
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
+            else:
+                st.success("🎉 目前無超耗塗料！ (No over-consumption for this dataset)")
 
         with tab_rootcause:
             st.subheader("3. 穩定度分析 (Stability Analysis)")
@@ -912,11 +936,14 @@ if uploaded_file is not None:
                                     yaxis=dict(
                                         title="<b>超耗量 (Over-used Volume)</b>"
                                     ), 
+                                    # --- TRỤC Y2 ĐÃ ĐƯỢC CHỈNH SỬA TẠI ĐÂY ---
                                     yaxis2=dict(
                                         title="<b>累計% (Cumulative %)</b>", 
                                         overlaying='y', 
                                         side='right', 
-                                        range=[0, 105], 
+                                        range=[0, 102], # Hơi dư một chút để đường line không chạm mép trên
+                                        tickmode='array', # Bắt buộc Plotly dùng vạch chia do bạn chỉ định
+                                        tickvals=[0, 20, 40, 60, 80, 100], # Mốc chia cố định
                                         showline=True, 
                                         linewidth=2, 
                                         linecolor='black'
