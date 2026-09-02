@@ -181,30 +181,43 @@ if uploaded_file is not None:
         with tab_pareto:
             st.subheader("2. 異常超耗柏拉圖 (Pareto Priority)")
             pareto_df = filtered_df[filtered_df['Δ耗用 (Deviation)'] > 0].groupby('塗料編號')['Δ耗用 (Deviation)'].sum().reset_index()
+            
             if not pareto_df.empty:
                 pareto_df = pareto_df.sort_values(by='Δ耗用 (Deviation)', ascending=False)
-                pareto_df['累計%'] = pareto_df['Δ耗用 (Deviation)'].cumsum() / pareto_df['Δ耗用 (Deviation)'].sum() * 100
-                top_pareto = pareto_df.head(20)
+                total_deviation = pareto_df['Δ耗用 (Deviation)'].sum()
+                
+                # BỔ SUNG LOGIC XỬ LÝ 100%: Gom các mã nhỏ thành nhóm "Khác (Others)"
+                if len(pareto_df) > 20:
+                    top_19 = pareto_df.head(19).copy() # Lấy 19 mã lớn nhất
+                    others_sum = pareto_df.iloc[19:]['Δ耗用 (Deviation)'].sum() # Cộng dồn tất cả các mã còn lại
+                    others_row = pd.DataFrame({'塗料編號': ['其他 (Others)'], 'Δ耗用 (Deviation)': [others_sum]})
+                    top_pareto = pd.concat([top_19, others_row], ignore_index=True)
+                else:
+                    top_pareto = pareto_df.copy()
+                    
+                # Tính lại % lũy kế trên dữ liệu đã gộp
+                top_pareto['累計%'] = top_pareto['Δ耗用 (Deviation)'].cumsum() / total_deviation * 100
+                
+                # --- PHẦN VẼ BIỂU ĐỒ GIỮ NGUYÊN NHƯ CŨ ---
                 fig_pareto = go.Figure()
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                 
+                fig_pareto.update_layout(**common_layout)
                 fig_pareto.update_layout(
                     xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
                     yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                    height=650, 
-                    title="<b>Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
+                    height=650, title="<b>Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
                     showlegend=True, 
-                    # --- BỔ SUNG CẤU HÌNH LEGEND TẠI ĐÂY ---
                     legend=dict(
-                        orientation="h",     # Chuyển thành hàng ngang
-                        yanchor="bottom",    # Neo lề dưới
-                        y=1.02,              # Đẩy lên trên khung biểu đồ
-                        xanchor="right",     # Neo lề phải
-                        x=1                  # Căn sát mép phải
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
                     ),
-                    margin=dict(b=160, t=100, r=80) # Thêm lề trên (t) và lề phải (r)
+                    margin=dict(b=160, t=100, r=80)
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
 
@@ -863,18 +876,29 @@ if uploaded_file is not None:
                             
                             if not pareto_df_exp.empty:
                                 pareto_df_exp = pareto_df_exp.sort_values(by='Δ耗用 (Deviation)', ascending=False)
-                                pareto_df_exp['累計%'] = pareto_df_exp['Δ耗用 (Deviation)'].cumsum() / pareto_df_exp['Δ耗用 (Deviation)'].sum() * 100
-                                top_pareto_exp = pareto_df_exp.head(20)
+                                total_deviation = pareto_df_exp['Δ耗用 (Deviation)'].sum()
+                                
+                                # Xử lý 100%: Gom các mã từ top 20 trở đi thành "其他 (Others)"
+                                if len(pareto_df_exp) > 20:
+                                    top_19 = pareto_df_exp.head(19).copy()
+                                    others_sum = pareto_df_exp.iloc[19:]['Δ耗用 (Deviation)'].sum()
+                                    others_row = pd.DataFrame({'塗料編號': ['其他 (Others)'], 'Δ耗用 (Deviation)': [others_sum]})
+                                    top_pareto_exp = pd.concat([top_19, others_row], ignore_index=True)
+                                else:
+                                    top_pareto_exp = pareto_df_exp.copy()
+                                    
+                                # Tính lại % lũy kế trên 20 cột đã gộp
+                                top_pareto_exp['累計%'] = top_pareto_exp['Δ耗用 (Deviation)'].cumsum() / total_deviation * 100
                                 
                                 # Khởi tạo biểu đồ
                                 fig_pareto_exp = go.Figure()
                                 fig_pareto_exp.add_trace(go.Bar(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                                 fig_pareto_exp.add_trace(go.Scatter(x=top_pareto_exp['塗料編號'], y=top_pareto_exp['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                                 
-                                # Cấu hình Layout chung (bạn nhớ đảm bảo biến common_layout đã được định nghĩa trước đó)
+                                # Cấu hình Layout chung
                                 fig_pareto_exp.update_layout(**common_layout, height=650, autosize=True, title=dict(text=f"<b>Line {line} - Top 20 成本流失最大塗料排行</b>", x=0.5))
                                 
-                                # Cấu hình chi tiết Trục tọa độ, Margin và Legend (Đã sửa lỗi đè chữ)
+                                # Cấu hình chi tiết Trục tọa độ, Margin và Legend
                                 fig_pareto_exp.update_layout(
                                     xaxis=dict(
                                         title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), 
@@ -899,13 +923,13 @@ if uploaded_file is not None:
                                     ), 
                                     showlegend=True,
                                     legend=dict(
-                                        orientation="h",      # Dàn chú giải nằm ngang
-                                        yanchor="bottom",     # Neo theo lề dưới
-                                        y=1.05,               # Đẩy lên trên biểu đồ (tăng nhẹ lên 1.05 cho thoáng)
-                                        xanchor="right",      # Neo lề phải
-                                        x=1                   # Căn sát lề phải
+                                        orientation="h",      
+                                        yanchor="bottom",     
+                                        y=1.05,               
+                                        xanchor="right",      
+                                        x=1                   
                                     ),
-                                    margin=dict(b=160, t=80, r=80) # Mở rộng lề trên và lề phải để chứa chú giải & tên trục Y2
+                                    margin=dict(b=160, t=100, r=80) 
                                 )
                                 
                                 # Xuất ra HTML
