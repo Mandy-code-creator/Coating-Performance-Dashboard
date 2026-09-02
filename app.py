@@ -189,13 +189,22 @@ if uploaded_file is not None:
                 fig_pareto.add_trace(go.Bar(x=top_pareto['塗料編號'], y=top_pareto['Δ耗用 (Deviation)'], name='超耗量 (Over-used)', marker_color='#990000'))
                 fig_pareto.add_trace(go.Scatter(x=top_pareto['塗料編號'], y=top_pareto['累計%'], name='累計% (Cumulative %)', yaxis='y2', line=dict(color='#00008B', width=3)))
                 
-                fig_pareto.update_layout(**common_layout)
                 fig_pareto.update_layout(
                     xaxis=dict(title=dict(text="<b>塗料編號 (Paint ID)</b>", standoff=40), tickangle=-90, automargin=True, showline=True, linewidth=2, linecolor='black', mirror=True),
                     yaxis=dict(title="<b>超耗量 (Over-used Volume)</b>"),
                     yaxis2=dict(title="<b>累計% (Cumulative %)</b>", overlaying='y', side='right', range=[0, 105], showline=True, linewidth=2, linecolor='black'),
-                    height=650, title="<b>Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
-                    showlegend=True, margin=dict(b=160)
+                    height=650, 
+                    title="<b>Top 20 成本流失最大塗料排行 (Top 20 Highest Cost Loss)</b>",
+                    showlegend=True, 
+                    # --- BỔ SUNG CẤU HÌNH LEGEND TẠI ĐÂY ---
+                    legend=dict(
+                        orientation="h",     # Chuyển thành hàng ngang
+                        yanchor="bottom",    # Neo lề dưới
+                        y=1.02,              # Đẩy lên trên khung biểu đồ
+                        xanchor="right",     # Neo lề phải
+                        x=1                  # Căn sát mép phải
+                    ),
+                    margin=dict(b=160, t=100, r=80) # Thêm lề trên (t) và lề phải (r)
                 )
                 st.plotly_chart(fig_pareto, use_container_width=True)
 
