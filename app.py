@@ -542,7 +542,7 @@ if uploaded_file is not None:
                         else:
                             act_colors.append('#F59E0B') 
                             act_labels.append(f"{row['合計績效%']:.1f}%")
-                    
+                
                     fig_gap = go.Figure()
                     
                     # 1. BULLET ACT BAR: Cột đứng hiển thị hiệu suất thực tế (Khóa chữ ở giữa thân cột)
@@ -559,7 +559,7 @@ if uploaded_file is not None:
                         width=0.45 
                     ))
                     
-                    # 2. BULLET TARGET MARKER: Vạch đen chỉ định mức Lý thuyết (ĐÃ TẮT CHỮ Ở ĐÂY ĐỂ TRÁNH ĐÈ)
+                    # 2. BULLET TARGET MARKER: Vạch đen chỉ định mức Lý thuyết
                     fig_gap.add_trace(go.Scatter(
                         x=df_gap_comp['Display_Label'].tolist(),
                         y=df_gap_comp['設定績效%'].tolist(),
@@ -607,9 +607,10 @@ if uploaded_file is not None:
                     fig_gap.update_layout(
                         barmode='group',
                         width=dynamic_width, 
-                        height=600,
+                        height=650, # Tăng nhẹ chiều cao để rộng rãi hơn
                         shapes=shapes,
-                        title="<b>全廠數據: 塗料績效定量分析產能看板 (Global Vertical Bullet Chart)</b>",
+                        # --- ĐÃ SỬA: Căn giữa tiêu đề ---
+                        title=dict(text="<b>全廠數據: 塗料績效定量分析產能看板 (Global Vertical Bullet Chart)</b>", x=0.5, y=0.96),
                         xaxis=dict(
                             title="<b>塗料編號 & 用途 (Paint ID & Usage)</b>", 
                             tickangle=-45, 
@@ -621,8 +622,9 @@ if uploaded_file is not None:
                             range=[0, y_max_limit],
                             showline=True, linewidth=2, linecolor='black', mirror=True
                         ),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1),
-                        margin=dict(b=140, t=100, r=40, l=80)
+                        # --- ĐÃ SỬA: Hạ chú giải xuống và mở rộng lề trên (t=130) ---
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        margin=dict(b=140, t=130, r=40, l=80)
                     )
                     
                     st.plotly_chart(fig_gap, use_container_width=False) 
